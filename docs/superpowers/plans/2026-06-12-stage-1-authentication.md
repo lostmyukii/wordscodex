@@ -1226,7 +1226,7 @@ git commit -m "feat: expose authentication API"
 - Create: `apps/web/src/features/onboarding/OnboardingEntryPage.tsx`
 - Modify: `apps/web/src/styles/index.css`
 
-- [ ] **Step 1: Write failing login component tests**
+- [x] **Step 1: Write failing login component tests**
 
 Create `apps/web/src/features/auth/LoginPage.test.tsx` with a memory router and injected
 auth API. Verify separately:
@@ -1241,12 +1241,12 @@ it('shows a Chinese API error and enables retry')
 
 Use real React Hook Form and Zod behavior. Mock only the HTTP boundary.
 
-- [ ] **Step 2: Update the shell test for the new login entry**
+- [x] **Step 2: Update the shell test for the new login entry**
 
 Change `apps/web/src/app/App.test.tsx` to expect the “开始学习” link to point to
 `/login`, not `/onboarding`.
 
-- [ ] **Step 3: Run Web tests and verify RED**
+- [x] **Step 3: Run Web tests and verify RED**
 
 Run:
 
@@ -1256,7 +1256,7 @@ pnpm --filter @wordscodex/web test
 
 Expected: FAIL because the login page, router, store, and `/login` entry do not exist.
 
-- [ ] **Step 4: Implement the API client**
+- [x] **Step 4: Implement the API client**
 
 Create `apps/web/src/features/auth/api.ts`:
 
@@ -1342,7 +1342,7 @@ export const authApi = {
 }
 ```
 
-- [ ] **Step 5: Implement the in-memory auth store**
+- [x] **Step 5: Implement the in-memory auth store**
 
 Create `apps/web/src/features/auth/auth-store.ts`:
 
@@ -1379,7 +1379,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 }))
 ```
 
-- [ ] **Step 6: Implement login, session restoration, and guarded routing**
+- [x] **Step 6: Implement login, session restoration, and guarded routing**
 
 Create `LoginPage.tsx` with two React Hook Form + Zod forms:
 
@@ -1412,7 +1412,7 @@ Change the product entry link to `/login`. `OnboardingEntryPage` displays the he
 “开始制定学习计划” and clearly states that the next step will select a goal and
 vocabulary book.
 
-- [ ] **Step 7: Add responsive login styles**
+- [x] **Step 7: Add responsive login styles**
 
 Extend `apps/web/src/styles/index.css` with:
 
@@ -1424,7 +1424,7 @@ Extend `apps/web/src/styles/index.css` with:
 - no hover-only interaction;
 - reduced-motion support.
 
-- [ ] **Step 8: Run Web tests and verify GREEN**
+- [x] **Step 8: Run Web tests and verify GREEN**
 
 Run:
 
@@ -1435,7 +1435,7 @@ pnpm --filter @wordscodex/web typecheck
 
 Expected: shell and login component tests pass and TypeScript exits 0.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add apps/web/src

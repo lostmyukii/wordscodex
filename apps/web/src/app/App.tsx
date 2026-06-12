@@ -7,7 +7,7 @@ export function App() {
         <p className="hero-copy">
           用清晰的每日任务，把学习、回忆和复习连成一条完整路径。
         </p>
-        <a className="primary-action" href="/onboarding">
+        <a className="primary-action" href="/login">
           开始学习
         </a>
       </section>

@@ -15,6 +15,6 @@ describe('App', () => {
       screen.getByRole('link', {
         name: '开始学习',
       }),
-    ).toHaveAttribute('href', '/onboarding')
+    ).toHaveAttribute('href', '/login')
   })
 })
