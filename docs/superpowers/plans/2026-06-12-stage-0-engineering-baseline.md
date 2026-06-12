@@ -440,7 +440,7 @@ git commit -m "build: bootstrap pnpm workspace"
 - Create: `packages/domain/src/system/readiness.ts`
 - Create: `packages/domain/src/index.ts`
 
-- [ ] **Step 1: Create package TypeScript and Vitest configuration**
+- [x] **Step 1: Create package TypeScript and Vitest configuration**
 
 Create `packages/contracts/tsconfig.json`:
 
@@ -492,7 +492,7 @@ export default defineConfig({
 })
 ```
 
-- [ ] **Step 2: Write failing health contract tests**
+- [x] **Step 2: Write failing health contract tests**
 
 Create `packages/contracts/src/health.test.ts`:
 
@@ -521,7 +521,7 @@ describe('healthResponseSchema', () => {
 })
 ```
 
-- [ ] **Step 3: Run the contract test and verify RED**
+- [x] **Step 3: Run the contract test and verify RED**
 
 Run:
 
@@ -531,7 +531,7 @@ pnpm --filter @wordscodex/contracts test
 
 Expected: FAIL because `./health.js` does not exist.
 
-- [ ] **Step 4: Implement the health contract**
+- [x] **Step 4: Implement the health contract**
 
 Create `packages/contracts/src/health.ts`:
 
@@ -555,7 +555,7 @@ export {
 } from './health.js'
 ```
 
-- [ ] **Step 5: Run the contract test and verify GREEN**
+- [x] **Step 5: Run the contract test and verify GREEN**
 
 Run:
 
@@ -565,7 +565,7 @@ pnpm --filter @wordscodex/contracts test
 
 Expected: 2 tests pass.
 
-- [ ] **Step 6: Write the failing readiness domain test**
+- [x] **Step 6: Write the failing readiness domain test**
 
 Create `packages/domain/src/system/readiness.test.ts`:
 
@@ -600,7 +600,7 @@ describe('getSystemReadiness', () => {
 })
 ```
 
-- [ ] **Step 7: Run the domain test and verify RED**
+- [x] **Step 7: Run the domain test and verify RED**
 
 Run:
 
@@ -610,7 +610,7 @@ pnpm --filter @wordscodex/domain test
 
 Expected: FAIL because `./readiness.js` does not exist.
 
-- [ ] **Step 8: Implement readiness calculation**
+- [x] **Step 8: Implement readiness calculation**
 
 Create `packages/domain/src/system/readiness.ts`:
 
@@ -649,7 +649,7 @@ Create `packages/domain/src/index.ts`:
 export { getSystemReadiness } from './system/readiness.js'
 ```
 
-- [ ] **Step 9: Run package tests and commit**
+- [x] **Step 9: Run package tests and commit**
 
 Run:
 
