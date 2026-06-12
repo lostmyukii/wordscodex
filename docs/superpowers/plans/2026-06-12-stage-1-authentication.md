@@ -264,7 +264,7 @@ git commit -m "feat: define authentication contracts"
 - Create: `apps/api/src/shared/prisma.ts`
 - Modify: `apps/api/src/index.ts`
 
-- [ ] **Step 1: Add a failing Prisma repository test**
+- [x] **Step 1: Add a failing Prisma repository test**
 
 Create `apps/api/src/modules/auth/auth-repository.test.ts`:
 
@@ -334,7 +334,7 @@ describe('PrismaAuthRepository', () => {
 })
 ```
 
-- [ ] **Step 2: Run the repository test and verify RED**
+- [x] **Step 2: Run the repository test and verify RED**
 
 Run:
 
@@ -344,7 +344,7 @@ pnpm --filter @wordscodex/api test -- auth-repository.test.ts
 
 Expected: FAIL because the auth repository and Prisma models do not exist.
 
-- [ ] **Step 3: Add Prisma models**
+- [x] **Step 3: Add Prisma models**
 
 Replace `apps/api/prisma/schema.prisma` with:
 
@@ -411,7 +411,7 @@ pnpm db:generate
 
 Expected: Prisma creates one migration and regenerates the client.
 
-- [ ] **Step 4: Implement the Prisma client and repository**
+- [x] **Step 4: Implement the Prisma client and repository**
 
 Create `apps/api/src/shared/prisma.ts`:
 
@@ -587,7 +587,7 @@ await app.listen({
 })
 ```
 
-- [ ] **Step 5: Run the repository test and verify GREEN**
+- [x] **Step 5: Run the repository test and verify GREEN**
 
 Run:
 
@@ -598,7 +598,7 @@ pnpm --filter @wordscodex/api typecheck
 
 Expected: both repository tests pass and TypeScript exits 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/prisma apps/api/src/modules/auth apps/api/src/shared apps/api/src/index.ts

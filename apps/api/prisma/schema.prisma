@@ -7,9 +7,45 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  learner
+  admin
+}
+
+enum AccountType {
+  guest
+  registered
+}
+
 model SystemMetadata {
   key       String   @id
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model User {
+  id          String        @id @default(cuid())
+  email       String?       @unique
+  displayName String        @default("学习者")
+  role        UserRole      @default(learner)
+  accountType AccountType   @default(guest)
+  timezone    String        @default("Asia/Shanghai")
+  sessions    AuthSession[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model AuthSession {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
 }
