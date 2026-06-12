@@ -28,7 +28,7 @@
 - Create: `packages/contracts/src/auth.test.ts`
 - Modify: `packages/contracts/src/index.ts`
 
-- [ ] **Step 1: Write failing contract tests**
+- [x] **Step 1: Write failing contract tests**
 
 Create `packages/contracts/src/auth.test.ts`:
 
@@ -125,7 +125,7 @@ describe('authentication contracts', () => {
 })
 ```
 
-- [ ] **Step 2: Run the contracts test and verify RED**
+- [x] **Step 2: Run the contracts test and verify RED**
 
 Run:
 
@@ -135,7 +135,7 @@ pnpm --filter @wordscodex/contracts test -- auth.test.ts
 
 Expected: FAIL because `packages/contracts/src/auth.ts` does not exist.
 
-- [ ] **Step 3: Implement authentication schemas and inferred types**
+- [x] **Step 3: Implement authentication schemas and inferred types**
 
 Create `packages/contracts/src/auth.ts`:
 
@@ -236,7 +236,7 @@ export {
 export { healthResponseSchema, type HealthResponse } from './health.js'
 ```
 
-- [ ] **Step 4: Run the contracts test and verify GREEN**
+- [x] **Step 4: Run the contracts test and verify GREEN**
 
 Run:
 
@@ -247,7 +247,7 @@ pnpm --filter @wordscodex/contracts typecheck
 
 Expected: five authentication contract tests pass and TypeScript exits 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/contracts/src
