@@ -1356,7 +1356,7 @@ git commit -m "feat: add responsive PWA application shell"
 - Create: `README.md`
 - Create: `.github/workflows/ci.yml`
 
-- [ ] **Step 1: Create CI configuration**
+- [x] **Step 1: Create CI configuration**
 
 Create `.github/workflows/ci.yml`:
 
@@ -1393,7 +1393,7 @@ jobs:
       - run: pnpm test:e2e
 ```
 
-- [ ] **Step 2: Create developer onboarding instructions**
+- [x] **Step 2: Create developer onboarding instructions**
 
 Create `README.md` with:
 
@@ -1439,7 +1439,7 @@ pnpm test:e2e
 ```
 ````
 
-- [ ] **Step 3: Run full verification**
+- [x] **Step 3: Run full verification**
 
 Run:
 
@@ -1467,7 +1467,7 @@ Expected:
 - mobile Chromium smoke test passes;
 - health endpoint returns `{"status":"ok","service":"wordscodex-api"}`.
 
-- [ ] **Step 4: Commit and push**
+- [x] **Step 4: Commit and push**
 
 ```bash
 git add README.md .github
