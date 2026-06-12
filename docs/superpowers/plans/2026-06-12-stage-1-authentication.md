@@ -868,7 +868,7 @@ git commit -m "feat: add verification code stores"
 - Create: `apps/api/src/modules/auth/auth-service.ts`
 - Create: `apps/api/src/modules/auth/auth-service.test.ts`
 
-- [ ] **Step 1: Install JOSE**
+- [x] **Step 1: Install JOSE**
 
 Run:
 
@@ -876,7 +876,7 @@ Run:
 pnpm --filter @wordscodex/api add jose@6.2.3
 ```
 
-- [ ] **Step 2: Write failing token tests**
+- [x] **Step 2: Write failing token tests**
 
 Create `apps/api/src/modules/auth/token-service.test.ts`:
 
@@ -904,7 +904,7 @@ describe('TokenService', () => {
 })
 ```
 
-- [ ] **Step 3: Run token tests and verify RED**
+- [x] **Step 3: Run token tests and verify RED**
 
 Run:
 
@@ -914,7 +914,7 @@ pnpm --filter @wordscodex/api test -- token-service.test.ts
 
 Expected: FAIL because `TokenService` does not exist.
 
-- [ ] **Step 4: Implement TokenService**
+- [x] **Step 4: Implement TokenService**
 
 Create `apps/api/src/modules/auth/token-service.ts`:
 
@@ -961,7 +961,7 @@ export class TokenService {
 }
 ```
 
-- [ ] **Step 5: Write failing authentication service tests**
+- [x] **Step 5: Write failing authentication service tests**
 
 Create `apps/api/src/modules/auth/auth-service.test.ts` with in-memory repository and
 code store fixtures. Cover these behaviors separately:
@@ -980,7 +980,7 @@ it('returns the current user for a valid access token')
 Each test must assert the public `AuthSessionResponse` shape and stable service error
 code, not internal repository calls.
 
-- [ ] **Step 6: Run authentication service tests and verify RED**
+- [x] **Step 6: Run authentication service tests and verify RED**
 
 Run:
 
@@ -990,7 +990,7 @@ pnpm --filter @wordscodex/api test -- auth-service.test.ts
 
 Expected: FAIL because `AuthService` does not exist.
 
-- [ ] **Step 7: Implement AuthService**
+- [x] **Step 7: Implement AuthService**
 
 Create `apps/api/src/modules/auth/auth-service.ts` with these public methods:
 
@@ -1045,7 +1045,7 @@ Use these invariants:
 - occupied email during guest upgrade maps to `ACCOUNT_EMAIL_IN_USE`;
 - no returned object contains a refresh token except the internal route result.
 
-- [ ] **Step 8: Extend and validate environment configuration**
+- [x] **Step 8: Extend and validate environment configuration**
 
 Update `apps/api/src/env.ts` to parse:
 
@@ -1058,7 +1058,7 @@ AUTH_DEV_CODE: z.string().regex(/^\d{6}$/).optional(),
 
 Add a refinement rejecting `AUTH_DEV_CODE` when `NODE_ENV` is `production`.
 
-- [ ] **Step 9: Run service tests and verify GREEN**
+- [x] **Step 9: Run service tests and verify GREEN**
 
 Run:
 
@@ -1069,7 +1069,7 @@ pnpm --filter @wordscodex/api typecheck
 
 Expected: token and service tests pass and TypeScript exits 0.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add apps/api/package.json apps/api/src/env.ts apps/api/src/modules/auth pnpm-lock.yaml
