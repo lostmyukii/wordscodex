@@ -41,7 +41,7 @@
 
 | 模块 | MVP 能力 |
 |---|---|
-| 账户 | 邮箱验证码或手机号验证码登录，访客体验，可补全正式账号 |
+| 账户 | MVP 使用邮箱验证码登录，支持访客体验，访客可补全邮箱升级为正式账号 |
 | 新手引导 | 选择学习目标、词库、每日新词量和提醒偏好 |
 | 词库 | 词库列表、词库详情、词库选择、基础搜索 |
 | 学习计划 | 根据词库规模、每日词量和目标日期生成计划 |
@@ -248,11 +248,26 @@ MVP 使用模块化单体，不拆微服务。学习调度模块保持纯领域�
 type User = {
   id: string
   email: string | null
-  phone: string | null
   displayName: string
   role: 'learner' | 'admin'
+  accountType: 'guest' | 'registered'
   timezone: string
   createdAt: string
+  updatedAt: string
+}
+```
+
+#### AuthSession
+
+```ts
+type AuthSession = {
+  id: string
+  userId: string
+  refreshTokenHash: string
+  expiresAt: string
+  revokedAt: string | null
+  createdAt: string
+  updatedAt: string
 }
 ```
 
@@ -371,6 +386,9 @@ type ReviewLog = {
 ### 7.2 数据约束
 
 - `ReviewLog.idempotencyKey` 全局唯一，客户端重试不得生成重复学习记录；
+- `AuthSession.refreshTokenHash` 全局唯一，只保存刷新令牌哈希，不保存原始令牌；
+- `AuthSession` 通过 `userId` 关联用户，用户删除时会级联删除会话；
+- 访客升级为邮箱账号时优先复用同一个 `User.id`，若邮箱已属于其他用户则返回 `ACCOUNT_EMAIL_IN_USE`；
 - 同一用户只能有一个 `active` 学习计划；
 - `nextReviewAt` 使用 UTC 存储，按用户时区展示；
 - 单词内容通过版本管理更新，不直接覆盖历史学习记录；
@@ -438,6 +456,8 @@ easy:  interval = max(4 天, 旧间隔 × easeFactor × 1.3)
 - API 前缀：`/api/v1`；
 - 传输格式：JSON；
 - 身份认证：短期访问令牌 + HttpOnly、Secure 刷新 Cookie；
+- 访问令牌只保存在 Web 运行时内存中，不写入 `localStorage`、`sessionStorage` 或 IndexedDB；
+- 刷新令牌只通过 `/api/v1/auth` 路径下的 HttpOnly Cookie 传输，服务端保存哈希并在刷新时轮换；
 - 所有写接口验证 `Content-Type`、请求体和权限；
 - 分页使用游标，不依赖易漂移的页码；
 - 错误返回稳定的业务代码，不向客户端暴露数据库错误；
@@ -462,11 +482,17 @@ easy:  interval = max(4 天, 旧间隔 × easeFactor × 1.3)
 ```text
 POST   /api/v1/auth/request-code
 POST   /api/v1/auth/verify-code
+POST   /api/v1/auth/guest
 POST   /api/v1/auth/refresh
 POST   /api/v1/auth/logout
 GET    /api/v1/me
 PATCH  /api/v1/me/preferences
 ```
+
+MVP 认证渠道为邮箱验证码。`POST /api/v1/auth/request-code` 在非生产环境可使用
+`AUTH_DEV_CODE` 固定验证码以支持本地开发和 E2E；生产环境必须移除该变量并接入真实发送通道。
+访客登录通过 `POST /api/v1/auth/guest` 创建 `accountType = 'guest'` 的用户；随后携带访客访问令牌完成
+`verify-code` 时，服务端会尝试升级同一个用户，邮箱冲突时返回 `ACCOUNT_EMAIL_IN_USE`。
 
 #### 词库与计划
 
@@ -741,16 +767,18 @@ production  正式环境
 DATABASE_URL
 REDIS_URL
 JWT_ACCESS_SECRET
-JWT_REFRESH_SECRET
+AUTH_DEV_CODE
+WEB_ORIGIN
+VITE_API_ORIGIN
 OBJECT_STORAGE_ENDPOINT
 OBJECT_STORAGE_BUCKET
 OBJECT_STORAGE_ACCESS_KEY
 OBJECT_STORAGE_SECRET_KEY
-WEB_ORIGIN
-API_ORIGIN
 ```
 
-仓库仅提交 `.env.example`，其中使用无敏感性的示例值。
+仓库仅提交 `.env.example`，其中使用无敏感性的示例值。生产环境必须通过部署平台注入
+`JWT_ACCESS_SECRET`，且不得设置 `AUTH_DEV_CODE`；测试环境可设置 `AUTH_DEV_CODE=123456`
+来稳定邮箱验证码流程。
 
 ## 18. 研发阶段与交付标准
 

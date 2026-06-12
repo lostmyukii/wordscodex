@@ -1546,7 +1546,7 @@ git commit -m "test: cover mobile authentication flow"
 - Modify: `apps/api/package.json`
 - Modify: `package.json`
 
-- [ ] **Step 1: Add database deployment scripts**
+- [x] **Step 1: Add database deployment scripts**
 
 Add to `apps/api/package.json`:
 
@@ -1560,7 +1560,7 @@ Add to the root `package.json`:
 "db:deploy": "pnpm --filter @wordscodex/api db:deploy"
 ```
 
-- [ ] **Step 2: Update example environment**
+- [x] **Step 2: Update example environment**
 
 Append to `.env.example`:
 
@@ -1574,7 +1574,7 @@ AUTH_DEV_CODE=123456
 Document that production must omit `AUTH_DEV_CODE` and provide a secret outside source
 control.
 
-- [ ] **Step 3: Add PostgreSQL and Redis CI services**
+- [x] **Step 3: Add PostgreSQL and Redis CI services**
 
 Update `.github/workflows/ci.yml` so the verify job contains:
 
@@ -1617,7 +1617,7 @@ VITE_API_ORIGIN: http://127.0.0.1:3001
 
 Run `pnpm db:deploy` before tests.
 
-- [ ] **Step 4: Synchronize public development documentation**
+- [x] **Step 4: Synchronize public development documentation**
 
 Update `README.md` with:
 
@@ -1637,7 +1637,7 @@ Update `docs/DEVELOPMENT.md`:
 - document access-token and refresh-cookie storage;
 - document guest upgrade conflict behavior.
 
-- [ ] **Step 5: Run full verification**
+- [x] **Step 5: Run full verification**
 
 Run:
 
@@ -1662,7 +1662,7 @@ Expected:
 - all Pixel 7 browser tests pass;
 - no secret, raw verification code, refresh token, or complete email appears in logs.
 
-- [ ] **Step 6: Commit and push**
+- [x] **Step 6: Commit and push**
 
 ```bash
 git add .env.example .github README.md docs/DEVELOPMENT.md apps/api/package.json package.json pnpm-lock.yaml

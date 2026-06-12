@@ -8,8 +8,36 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: wordscodex
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wordscodex
+      REDIS_URL: redis://127.0.0.1:6379/15
+      NODE_ENV: test
+      AUTH_DEV_CODE: 123456
+      JWT_ACCESS_SECRET: test-secret-at-least-thirty-two-characters
+      WEB_ORIGIN: http://127.0.0.1:4173
+      VITE_API_ORIGIN: http://127.0.0.1:3001
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -21,6 +49,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
+      - run: pnpm db:deploy
+      - run: pnpm db:seed
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck

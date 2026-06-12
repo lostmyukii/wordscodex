@@ -18,6 +18,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "pnpm --filter @wordscodex/api db:generate",
+    "db:deploy": "pnpm --filter @wordscodex/api db:deploy",
     "db:migrate": "pnpm --filter @wordscodex/api db:migrate",
     "db:seed": "pnpm --filter @wordscodex/api db:seed"
   },
