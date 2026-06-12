@@ -1,0 +1,9 @@
+dist
+coverage
+node_modules
+playwright-report
+test-results
+pnpm-lock.yaml
+docs
+AGENTS.md
+融合版_智能词汇学习产品需求分析.md

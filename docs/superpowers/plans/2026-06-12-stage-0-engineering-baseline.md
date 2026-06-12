@@ -86,7 +86,7 @@
 - Create: `packages/domain/package.json`
 - Create: `packages/config/package.json`
 
-- [ ] **Step 1: Activate the pinned package manager**
+- [x] **Step 1: Activate the pinned package manager**
 
 Run:
 
@@ -97,7 +97,7 @@ pnpm --version
 
 Expected: `11.6.0`.
 
-- [ ] **Step 2: Create the root workspace configuration**
+- [x] **Step 2: Create the root workspace configuration**
 
 Create `package.json`:
 
@@ -126,8 +126,8 @@ Create `package.json`:
     "db:seed": "pnpm --filter @wordscodex/api db:seed"
   },
   "devDependencies": {
-    "@eslint/js": "10.0.0",
-    "eslint": "10.0.0",
+    "@eslint/js": "10.0.1",
+    "eslint": "10.4.1",
     "eslint-config-prettier": "10.1.8",
     "globals": "17.6.0",
     "prettier": "3.8.4",
@@ -164,7 +164,7 @@ Create `tsconfig.base.json`:
 }
 ```
 
-- [ ] **Step 3: Create formatting and lint configuration**
+- [x] **Step 3: Create formatting and lint configuration**
 
 Create `.prettierrc.json`:
 
@@ -194,11 +194,12 @@ Create `eslint.config.mjs`:
 
 ```js
 import eslint from '@eslint/js'
+import { defineConfig } from 'eslint/config'
 import prettier from 'eslint-config-prettier'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
-export default tseslint.config(
+export default defineConfig(
   {
     ignores: [
       '**/dist/**',
@@ -208,16 +209,28 @@ export default tseslint.config(
       '**/test-results/**',
     ],
   },
-  eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
+  {
+    files: ['**/*.{js,mjs,cjs}'],
+    extends: [eslint.configs.recommended],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
   {
     files: ['**/*.{ts,tsx}'],
+    extends: [
+      eslint.configs.recommended,
+      tseslint.configs.recommendedTypeChecked,
+    ],
     languageOptions: {
       parserOptions: {
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
-      globals: globals.node,
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
     },
     rules: {
       '@typescript-eslint/consistent-type-imports': 'error',
@@ -242,7 +255,7 @@ test-results/
 apps/api/generated/
 ```
 
-- [ ] **Step 4: Create package manifests**
+- [x] **Step 4: Create package manifests**
 
 Create `packages/contracts/package.json`:
 
@@ -393,7 +406,7 @@ Create `apps/web/package.json`:
 }
 ```
 
-- [ ] **Step 5: Install and verify workspace resolution**
+- [x] **Step 5: Install and verify workspace resolution**
 
 Run:
 
@@ -404,7 +417,7 @@ pnpm list -r --depth 0
 
 Expected: five workspace packages resolve without peer dependency errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json \
