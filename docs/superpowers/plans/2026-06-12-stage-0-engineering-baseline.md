@@ -961,7 +961,7 @@ git commit -m "feat: add API and database baseline"
 - Create: `apps/web/src/styles/index.css`
 - Create: `apps/web/public/icons/icon.svg`
 
-- [ ] **Step 1: Create Web TypeScript and test configuration**
+- [x] **Step 1: Create Web TypeScript and test configuration**
 
 Create `apps/web/tsconfig.json`:
 
@@ -975,7 +975,13 @@ Create `apps/web/tsconfig.json`:
     "moduleResolution": "Bundler",
     "types": ["vite/client", "vitest/globals"]
   },
-  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "src",
+    "e2e",
+    "playwright.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
 }
 ```
 
@@ -989,6 +995,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    exclude: ['e2e/**', 'node_modules/**'],
     setupFiles: ['./src/test/setup.ts'],
   },
 })
@@ -1000,7 +1007,7 @@ Create `apps/web/src/test/setup.ts`:
 import '@testing-library/jest-dom/vitest'
 ```
 
-- [ ] **Step 2: Write the failing component and browser tests**
+- [x] **Step 2: Write the failing component and browser tests**
 
 Create `apps/web/src/app/App.test.tsx`:
 
@@ -1076,19 +1083,19 @@ test('shows a usable mobile product entry', async ({ page }) => {
 })
 ```
 
-- [ ] **Step 3: Run the Web test and verify RED**
+- [x] **Step 3: Run the Web test and verify RED**
 
 Run:
 
 ```bash
 pnpm --filter @wordscodex/web test
-pnpm exec playwright install chromium
+pnpm --filter @wordscodex/web exec playwright install chromium
 pnpm --filter @wordscodex/web test:e2e
 ```
 
 Expected: both commands FAIL because `src/app/App.tsx` does not exist.
 
-- [ ] **Step 4: Implement the minimal application shell**
+- [x] **Step 4: Implement the minimal application shell**
 
 Create `apps/web/src/app/App.tsx`:
 
@@ -1237,7 +1244,7 @@ h1 {
 }
 ```
 
-- [ ] **Step 5: Configure Vite and PWA**
+- [x] **Step 5: Configure Vite and PWA**
 
 Create `apps/web/index.html`:
 
@@ -1324,7 +1331,7 @@ Create `apps/web/public/icons/icon.svg`:
 </svg>
 ```
 
-- [ ] **Step 6: Run the Web test and verify GREEN**
+- [x] **Step 6: Run the Web test and verify GREEN**
 
 Run:
 
@@ -1336,7 +1343,7 @@ pnpm --filter @wordscodex/web test:e2e
 
 Expected: one component test and one mobile Chromium test pass; Vite creates `apps/web/dist`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/web
@@ -1382,7 +1389,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --filter @wordscodex/web exec playwright install --with-deps chromium
       - run: pnpm test:e2e
 ```
 
