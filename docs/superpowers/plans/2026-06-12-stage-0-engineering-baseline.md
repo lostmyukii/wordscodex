@@ -182,6 +182,7 @@ Create `.prettierignore`:
 dist
 coverage
 node_modules
+apps/api/generated
 playwright-report
 test-results
 pnpm-lock.yaml
@@ -204,6 +205,7 @@ export default defineConfig(
     ignores: [
       '**/dist/**',
       '**/coverage/**',
+      '**/generated/**',
       '**/node_modules/**',
       '**/playwright-report/**',
       '**/test-results/**',
@@ -683,7 +685,7 @@ git commit -m "test: establish shared package boundaries"
 - Create: `apps/api/prisma/seed.ts`
 - Create: `apps/api/prisma/migrations/*/migration.sql`
 
-- [ ] **Step 1: Create API TypeScript and test configuration**
+- [x] **Step 1: Create API TypeScript and test configuration**
 
 Create `apps/api/tsconfig.json`:
 
@@ -710,7 +712,7 @@ export default defineConfig({
 })
 ```
 
-- [ ] **Step 2: Write the failing health endpoint test**
+- [x] **Step 2: Write the failing health endpoint test**
 
 Create `apps/api/src/routes/health.test.ts`:
 
@@ -741,7 +743,7 @@ describe('GET /api/v1/health', () => {
 })
 ```
 
-- [ ] **Step 3: Run the API test and verify RED**
+- [x] **Step 3: Run the API test and verify RED**
 
 Run:
 
@@ -751,19 +753,20 @@ pnpm --filter @wordscodex/api test
 
 Expected: FAIL because `src/app.ts` does not exist.
 
-- [ ] **Step 4: Implement the API application factory and route**
+- [x] **Step 4: Implement the API application factory and route**
 
 Create `apps/api/src/routes/health.ts`:
 
 ```ts
-import type { FastifyPluginAsync } from 'fastify'
 import type { HealthResponse } from '@wordscodex/contracts'
+import type { FastifyPluginCallback } from 'fastify'
 
-export const healthRoutes: FastifyPluginAsync = async (app) => {
-  app.get<{ Reply: HealthResponse }>('/health', async () => ({
+export const healthRoutes: FastifyPluginCallback = (app, _options, done) => {
+  app.get<{ Reply: HealthResponse }>('/health', () => ({
     status: 'ok',
     service: 'wordscodex-api',
   }))
+  done()
 }
 ```
 
@@ -821,7 +824,7 @@ await app.listen({
 })
 ```
 
-- [ ] **Step 5: Run the API test and verify GREEN**
+- [x] **Step 5: Run the API test and verify GREEN**
 
 Run:
 
@@ -831,12 +834,12 @@ pnpm --filter @wordscodex/api test
 
 Expected: 1 test passes.
 
-- [ ] **Step 6: Configure Prisma and PostgreSQL**
+- [x] **Step 6: Configure Prisma and PostgreSQL**
 
 Create `.env.example`:
 
 ```text
-DATABASE_URL=postgresql://localhost:5432/wordscodex
+DATABASE_URL=postgresql://wordscodex:wordscodex@localhost:5432/wordscodex
 API_HOST=127.0.0.1
 API_PORT=3001
 WEB_ORIGIN=http://localhost:5173
@@ -911,22 +914,30 @@ await prisma.systemMetadata.upsert({
 await prisma.$disconnect()
 ```
 
-- [ ] **Step 7: Create the local database and first migration**
+- [x] **Step 7: Create the local database and first migration**
 
 Run:
 
 ```bash
-createdb wordscodex 2>/dev/null || true
+psql postgres -tAc \
+  "SELECT 1 FROM pg_roles WHERE rolname = 'wordscodex'" |
+  grep -q 1 ||
+  psql postgres -c \
+    "CREATE ROLE wordscodex WITH LOGIN CREATEDB PASSWORD 'wordscodex';"
+psql postgres -c \
+  "ALTER ROLE wordscodex WITH LOGIN CREATEDB PASSWORD 'wordscodex';"
+createdb --owner=wordscodex wordscodex 2>/dev/null || true
+psql postgres -c "ALTER DATABASE wordscodex OWNER TO wordscodex;"
 cp .env.example apps/api/.env
 pnpm db:generate
-pnpm db:migrate -- --name init_system_metadata
+pnpm db:migrate --name init_system_metadata
 pnpm db:seed
 psql wordscodex -c 'select key, value from "SystemMetadata";'
 ```
 
 Expected: one row with `schema_version | stage-0`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add .env.example apps/api
@@ -1395,10 +1406,12 @@ React + TypeScript 响应式 Web/PWA 智能词汇学习平台。
 ```bash
 corepack prepare pnpm@11.6.0 --activate
 pnpm install
-createdb wordscodex
+psql postgres -c \
+  "CREATE ROLE wordscodex WITH LOGIN CREATEDB PASSWORD 'wordscodex';"
+createdb --owner=wordscodex wordscodex
 cp .env.example apps/api/.env
 pnpm db:generate
-pnpm db:migrate -- --name init
+pnpm db:migrate --name init
 pnpm db:seed
 pnpm dev
 ```

@@ -1,6 +1,7 @@
 dist
 coverage
 node_modules
+apps/api/generated
 playwright-report
 test-results
 pnpm-lock.yaml

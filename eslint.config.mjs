@@ -9,6 +9,7 @@ export default defineConfig(
     ignores: [
       '**/dist/**',
       '**/coverage/**',
+      '**/generated/**',
       '**/node_modules/**',
       '**/playwright-report/**',
       '**/test-results/**',
