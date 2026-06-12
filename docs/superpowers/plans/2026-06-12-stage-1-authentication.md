@@ -1449,7 +1449,7 @@ git commit -m "feat: add web authentication flow"
 - Create: `apps/web/e2e/auth.spec.ts`
 - Modify: `apps/web/e2e/app-shell.spec.ts`
 
-- [ ] **Step 1: Write failing browser tests**
+- [x] **Step 1: Write failing browser tests**
 
 Create `apps/web/e2e/auth.spec.ts` with two isolated tests:
 
@@ -1471,7 +1471,7 @@ The email test requests a code, enters `123456`, reaches `/onboarding`, and sees
 “开始制定学习计划”. The guest test clicks “先体验一下” and reaches the same guarded
 page. Keep the Pixel 7 project.
 
-- [ ] **Step 2: Run E2E and verify RED**
+- [x] **Step 2: Run E2E and verify RED**
 
 Run:
 
@@ -1482,7 +1482,7 @@ pnpm test:e2e
 Expected: FAIL until Playwright starts the API, database fixtures are isolated, and
 the browser flow is wired.
 
-- [ ] **Step 3: Configure the combined test server**
+- [x] **Step 3: Configure the combined test server**
 
 Update `apps/web/playwright.config.ts` to use an array of web servers:
 
@@ -1509,7 +1509,7 @@ webServer: [
 Forward `DATABASE_URL`, `REDIS_URL`, and `WEB_ORIGIN` from the parent environment.
 Clear auth sessions, users, and Redis database 15 before the suite.
 
-- [ ] **Step 4: Run E2E and verify GREEN**
+- [x] **Step 4: Run E2E and verify GREEN**
 
 Run:
 
@@ -1519,7 +1519,7 @@ pnpm test:e2e
 
 Expected: app-shell, email verification, and guest mobile tests pass.
 
-- [ ] **Step 5: Verify the page visually in the in-app Browser**
+- [x] **Step 5: Verify the page visually in the in-app Browser**
 
 Start the app, open `/login` at a 375×812 viewport, and verify:
 
@@ -1529,7 +1529,7 @@ Start the app, open `/login` at a 375×812 viewport, and verify:
 - verification and API error states remain readable;
 - guest action is visually secondary but clearly discoverable.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/web/e2e apps/web/playwright.config.ts

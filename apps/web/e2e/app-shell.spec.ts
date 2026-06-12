@@ -14,5 +14,5 @@ test('shows a usable mobile product entry', async ({ page }) => {
   })
 
   await expect(action).toBeVisible()
-  await expect(action).toHaveAttribute('href', '/onboarding')
+  await expect(action).toHaveAttribute('href', '/login')
 })
