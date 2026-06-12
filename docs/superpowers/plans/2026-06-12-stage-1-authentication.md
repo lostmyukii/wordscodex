@@ -1086,7 +1086,7 @@ git commit -m "feat: add authentication services"
 - Create: `apps/api/src/modules/auth/auth-routes.test.ts`
 - Create: `apps/api/src/shared/http-error.ts`
 
-- [ ] **Step 1: Install Fastify cookie and rate-limit plugins**
+- [x] **Step 1: Install Fastify cookie and rate-limit plugins**
 
 Run:
 
@@ -1096,7 +1096,7 @@ pnpm --filter @wordscodex/api add \
   @fastify/rate-limit@11.0.0
 ```
 
-- [ ] **Step 2: Write failing route tests**
+- [x] **Step 2: Write failing route tests**
 
 Create `apps/api/src/modules/auth/auth-routes.test.ts`. Build the app with an in-memory
 repository and code store, then verify:
@@ -1115,7 +1115,7 @@ it('rejects repeated request-code calls with 429')
 Cookie assertions must include `HttpOnly`, `SameSite=Lax`, `Path=/api/v1/auth`, and
 absence of the refresh token from JSON.
 
-- [ ] **Step 3: Run route tests and verify RED**
+- [x] **Step 3: Run route tests and verify RED**
 
 Run:
 
@@ -1125,7 +1125,7 @@ pnpm --filter @wordscodex/api test -- auth-routes.test.ts
 
 Expected: FAIL because the auth routes are not registered.
 
-- [ ] **Step 4: Implement standard HTTP errors**
+- [x] **Step 4: Implement standard HTTP errors**
 
 Create `apps/api/src/shared/http-error.ts`:
 
@@ -1147,7 +1147,7 @@ Map Zod failures to `VALIDATION_FAILED`, rate limits to
 `AUTH_CODE_RATE_LIMITED`, service authentication failures to their stable code, and
 all other failures to a generic internal response without stack or database details.
 
-- [ ] **Step 5: Implement auth routes**
+- [x] **Step 5: Implement auth routes**
 
 Create `apps/api/src/modules/auth/auth-routes.ts` and register:
 
@@ -1176,7 +1176,7 @@ Set the refresh cookie with:
 Use the optional Bearer token on `verify-code` only for guest upgrade. `/me` requires
 a Bearer token. Apply Fastify rate limits to request-code, verify-code, and guest.
 
-- [ ] **Step 6: Wire dependencies through buildApp**
+- [x] **Step 6: Wire dependencies through buildApp**
 
 Change `buildApp()` to `buildApp(options?: BuildAppOptions)` where tests may inject an
 `AuthService`. Production construction uses Prisma repository, Redis code store,
@@ -1193,7 +1193,7 @@ void app.register(cors, {
 
 Register cookie, rate limit, health, auth, and error handling in that order.
 
-- [ ] **Step 7: Run route and API tests and verify GREEN**
+- [x] **Step 7: Run route and API tests and verify GREEN**
 
 Run:
 
@@ -1204,7 +1204,7 @@ pnpm --filter @wordscodex/api typecheck
 
 Expected: health and authentication API tests pass and TypeScript exits 0.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add apps/api/package.json apps/api/src pnpm-lock.yaml
