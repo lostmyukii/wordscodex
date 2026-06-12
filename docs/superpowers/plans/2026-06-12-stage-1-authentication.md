@@ -615,7 +615,7 @@ git commit -m "feat: add authentication persistence"
 - Create: `apps/api/src/modules/auth/redis-code-store.ts`
 - Create: `apps/api/src/modules/auth/redis-code-store.test.ts`
 
-- [ ] **Step 1: Install the Redis client**
+- [x] **Step 1: Install the Redis client**
 
 Run:
 
@@ -625,7 +625,7 @@ pnpm --filter @wordscodex/api add redis@6.0.0
 
 Expected: `apps/api/package.json` and `pnpm-lock.yaml` include `redis`.
 
-- [ ] **Step 2: Write failing store behavior tests**
+- [x] **Step 2: Write failing store behavior tests**
 
 Create `apps/api/src/modules/auth/code-store.test.ts`:
 
@@ -661,7 +661,7 @@ describe('InMemoryVerificationCodeStore', () => {
 })
 ```
 
-- [ ] **Step 3: Run the memory store test and verify RED**
+- [x] **Step 3: Run the memory store test and verify RED**
 
 Run:
 
@@ -671,7 +671,7 @@ pnpm --filter @wordscodex/api test -- code-store.test.ts
 
 Expected: FAIL because `InMemoryVerificationCodeStore` does not exist.
 
-- [ ] **Step 4: Implement the store contract and memory store**
+- [x] **Step 4: Implement the store contract and memory store**
 
 Create `apps/api/src/modules/auth/code-store.ts`:
 
@@ -742,7 +742,7 @@ export class InMemoryVerificationCodeStore
 }
 ```
 
-- [ ] **Step 5: Run the memory store test and verify GREEN**
+- [x] **Step 5: Run the memory store test and verify GREEN**
 
 Run:
 
@@ -752,7 +752,7 @@ pnpm --filter @wordscodex/api test -- code-store.test.ts
 
 Expected: two tests pass.
 
-- [ ] **Step 6: Implement Redis parity and integration coverage**
+- [x] **Step 6: Implement Redis parity and integration coverage**
 
 Create `apps/api/src/modules/auth/redis-code-store.ts`:
 
@@ -850,7 +850,7 @@ REDIS_URL=redis://127.0.0.1:6379/15 \
 
 Expected: Redis integration tests pass and database 15 is cleared after the test.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/api/package.json apps/api/src/modules/auth pnpm-lock.yaml
