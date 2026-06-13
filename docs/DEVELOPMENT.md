@@ -546,7 +546,12 @@ GET    /api/v1/study-sessions/:sessionId/result
 `fuzzy`、`mistake` 和 `lapsed` 单词，`POST /api/v1/mistakes/session` 可创建
 `mistake_drill` 强化会话。前端 `/mistakes` 页面支持加载、空状态、错误重试、无计划引导和开始错词强化。
 连续正确不足 3 次时仍保留在高优先级错词队列，达到 3 次后按当前间隔返回 `learning` 或 `mastered`；
-错词追加不同题型和离线会话恢复仍属于后续 Stage 2 任务。
+错词追加不同题型仍属于后续 Stage 2 任务。
+
+当前 Stage 2 已落地学习会话刷新恢复：`GET /api/v1/study-sessions/:sessionId` 会在固定题目顺序之外返回
+已持久化的 `reviews`，其中包含作答、耗时、等级和服务端最终 `progress`；前端学习页会合并这些服务端记录与本地新提交，
+刷新后继续显示已答数量、下次复习时间和“完成会话”条件。断网作答、本地 IndexedDB 队列和离线恢复仍属于 Stage 3
+PWA/offline 同步范围。
 
 创建会话请求：
 
@@ -843,7 +848,7 @@ OBJECT_STORAGE_SECRET_KEY
 - 到期复习队列（已落地 active 计划词库过滤、优先级排序和 review/mixed 会话创建）；
 - 错词本和消灭模式（已落地错词列表、`mistake_drill` 会话创建和连续正确 3 次后的状态回流）；
 - 幂等学习记录；
-- 学习会话恢复。
+- 学习会话恢复（已落地刷新后的服务端作答恢复，离线队列恢复进入 Stage 3）。
 
 验收：回答会改变掌握状态和下次复习时间，重复请求不会重复计数。
 

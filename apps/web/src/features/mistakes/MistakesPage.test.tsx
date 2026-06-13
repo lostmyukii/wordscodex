@@ -99,6 +99,7 @@ const mistakeSessionResponse: StudySessionResponse = {
       },
     ],
   },
+  reviews: [],
 }
 
 function createMistakesClient(overrides: Partial<MistakesClient> = {}) {

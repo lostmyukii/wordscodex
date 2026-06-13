@@ -105,10 +105,6 @@ export const studySessionSchema = z.object({
   items: z.array(studySessionItemSchema),
 })
 
-export const studySessionResponseSchema = z.object({
-  session: studySessionSchema,
-})
-
 export const submitReviewRequestSchema = z.object({
   wordId: z.string().min(1),
   questionType: questionTypeSchema,
@@ -135,6 +131,22 @@ export const reviewProgressSchema = z.object({
   nextReviewAt: z.string().datetime().nullable(),
   averageResponseMs: z.number().int().positive().nullable(),
   lastErrorType: questionTypeSchema.nullable(),
+})
+
+export const studySessionReviewSchema = z.object({
+  wordId: z.string().min(1),
+  questionType: questionTypeSchema,
+  rating: reviewRatingSchema,
+  isCorrect: z.boolean(),
+  responseMs: z.number().int().positive(),
+  answer: z.string().min(1).nullable(),
+  reviewedAt: z.string().datetime(),
+  progress: reviewProgressSchema,
+})
+
+export const studySessionResponseSchema = z.object({
+  session: studySessionSchema,
+  reviews: z.array(studySessionReviewSchema).default([]),
 })
 
 export const submitReviewResponseSchema = z.object({
@@ -190,6 +202,7 @@ export type CreateStudySessionRequest = z.infer<
   typeof createStudySessionRequestSchema
 >
 export type StudySession = z.infer<typeof studySessionSchema>
+export type StudySessionReview = z.infer<typeof studySessionReviewSchema>
 export type StudySessionResponse = z.infer<typeof studySessionResponseSchema>
 export type SubmitReviewRequest = z.infer<typeof submitReviewRequestSchema>
 export type ReviewProgress = z.infer<typeof reviewProgressSchema>

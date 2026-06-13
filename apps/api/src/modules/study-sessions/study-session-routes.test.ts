@@ -7,6 +7,7 @@ import {
   todayResponseSchema,
   type StudyPlan,
   type StudySessionResult,
+  type StudySessionResponse,
   type SubmitReviewRequest,
   type SubmitReviewResult,
   type StudySession,
@@ -147,7 +148,14 @@ class MemoryStudySessionRepository {
   getSession(sessionId: string, userId: string) {
     const candidate = this.sessions.get(sessionId)
     if (!candidate || candidate.userId !== userId) return Promise.resolve(null)
-    return Promise.resolve(candidate)
+    return Promise.resolve({
+      session: candidate,
+      reviews: buildRestoredReviews(
+        candidate,
+        this.reviewCalls,
+        this.processedKeys,
+      ),
+    })
   }
 
   submitReview(input: {
@@ -290,6 +298,38 @@ function buildResult(
     },
     items,
   }
+}
+
+function buildRestoredReviews(
+  candidate: StudySession,
+  reviewCalls: MemoryStudySessionRepository['reviewCalls'],
+  processedKeys: MemoryStudySessionRepository['processedKeys'],
+): StudySessionResponse['reviews'] {
+  const reviewsByWordId = new Map(
+    reviewCalls
+      .filter((call) => call.sessionId === candidate.id)
+      .map((call) => [call.input.wordId, call]),
+  )
+
+  return candidate.items.flatMap((item) => {
+    const review = reviewsByWordId.get(item.word.id)
+    if (!review) return []
+    const result = processedKeys.get(review.idempotencyKey)
+    if (!result) return []
+
+    return [
+      {
+        wordId: review.input.wordId,
+        questionType: review.input.questionType,
+        rating: review.input.rating,
+        isCorrect: review.input.isCorrect,
+        responseMs: review.input.responseMs,
+        answer: review.input.answer,
+        reviewedAt: review.input.reviewedAt,
+        progress: result.progress,
+      },
+    ]
+  })
 }
 
 function createAuthService(): AuthService {
@@ -510,6 +550,50 @@ describe('study session routes', () => {
       masteryState: 'learning',
       repetitions: 1,
       nextReviewAt: '2026-06-15T00:00:00.000Z',
+    })
+  })
+
+  it('returns restored review state when loading an in-progress session', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/study-sessions/session_123/reviews',
+      headers: {
+        authorization: 'Bearer valid-token',
+        'idempotency-key': 'idem_restore_session',
+      },
+      payload: {
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '认识',
+        reviewedAt: fixedIso,
+      },
+    })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/study-sessions/session_123',
+      headers: {
+        authorization: 'Bearer valid-token',
+      },
+    })
+    const body = studySessionResponseSchema.parse(response.json())
+
+    expect(response.statusCode).toBe(200)
+    expect(body.reviews[0]).toMatchObject({
+      wordId: 'word_ability',
+      questionType: 'word_to_meaning',
+      rating: 'good',
+      isCorrect: true,
+      responseMs: 4200,
+      answer: '认识',
+      reviewedAt: fixedIso,
+      progress: {
+        masteryState: 'learning',
+        nextReviewAt: '2026-06-15T00:00:00.000Z',
+      },
     })
   })
 

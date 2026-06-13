@@ -9,6 +9,7 @@ import {
   type CompleteStudySessionResponse,
   type StudyPlan,
   type StudySession,
+  type StudySessionResponse,
   type StudySessionResult,
   type SubmitReviewRequest,
   type SubmitReviewResult,
@@ -39,7 +40,10 @@ export type StudySessionRepository = {
     reviewLimit: number
     now: Date
   }): Promise<StudySession>
-  getSession(sessionId: string, userId: string): Promise<StudySession | null>
+  getSession(
+    sessionId: string,
+    userId: string,
+  ): Promise<StudySessionResponse | null>
   submitReview(input: {
     sessionId: string
     userId: string
@@ -154,16 +158,16 @@ export const studySessionRoutes: FastifyPluginCallback<
   app.get('/study-sessions/:sessionId', async (request) => {
     const user = await requireCurrentUser(request, options.authService)
     const sessionId = getSessionId(request.params)
-    const session = await options.studySessionRepository.getSession(
+    const response = await options.studySessionRepository.getSession(
       sessionId,
       user.id,
     )
 
-    if (!session) {
+    if (!response) {
       throw new HttpError(404, 'NOT_FOUND', '学习会话不存在。')
     }
 
-    return studySessionResponseSchema.parse({ session })
+    return studySessionResponseSchema.parse(response)
   })
 
   app.post('/study-sessions/:sessionId/reviews', async (request, reply) => {

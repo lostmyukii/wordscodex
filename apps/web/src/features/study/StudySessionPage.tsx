@@ -1,12 +1,20 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { ReviewRating, StudySession } from '@wordscodex/contracts'
+import type {
+  ReviewRating,
+  StudySession,
+  SubmitReviewResponse,
+} from '@wordscodex/contracts'
 import { useAuthStore } from '../auth/auth-store'
 import { studyApi, type StudyClient } from './api'
 
 type StudySessionPageProps = {
   studyApi?: StudyClient
+}
+
+type ReviewResultState = SubmitReviewResponse & {
+  restoredFromServer?: boolean
 }
 
 export function StudySessionPage({
@@ -18,8 +26,8 @@ export function StudySessionPage({
   const reviewStartedAtMs = useRef(Date.now())
   const idempotencyKeys = useRef(new Map<string, string>())
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [reviewResults, setReviewResults] = useState<
-    Map<string, Awaited<ReturnType<StudyClient['submitReview']>>>
+  const [localReviewResults, setLocalReviewResults] = useState<
+    Map<string, ReviewResultState>
   >(() => new Map())
   const sessionQuery = useQuery({
     queryKey: ['study-session', sessionId],
@@ -58,9 +66,9 @@ export function StudySessionPage({
       )
     },
     onSuccess(result, input) {
-      setReviewResults((previous) => {
+      setLocalReviewResults((previous) => {
         const nextResults = new Map(previous)
-        nextResults.set(input.wordId, result)
+        nextResults.set(reviewResultKey(input.session.id, input.wordId), result)
         return nextResults
       })
     },
@@ -72,6 +80,27 @@ export function StudySessionPage({
       void navigate(`/study/result/${response.session.id}`)
     },
   })
+  const restoredReviewResults = useMemo(() => {
+    const nextResults = new Map<string, ReviewResultState>()
+    const response = sessionQuery.data
+    if (!response) return nextResults
+
+    for (const review of response.reviews) {
+      nextResults.set(reviewResultKey(response.session.id, review.wordId), {
+        progress: review.progress,
+        alreadyProcessed: false,
+        restoredFromServer: true,
+      })
+    }
+    return nextResults
+  }, [sessionQuery.data])
+  const reviewResults = useMemo(() => {
+    const nextResults = new Map(restoredReviewResults)
+    for (const [key, result] of localReviewResults) {
+      nextResults.set(key, result)
+    }
+    return nextResults
+  }, [localReviewResults, restoredReviewResults])
 
   if (sessionQuery.isPending) {
     return <p className="route-status">正在加载学习会话…</p>
@@ -96,13 +125,15 @@ export function StudySessionPage({
   const sessionModeLabel = getSessionModeLabel(session.mode)
   const currentItem = session.items[currentIndex]
   const currentReviewResult = currentItem
-    ? reviewResults.get(currentItem.word.id)
+    ? reviewResults.get(reviewResultKey(session.id, currentItem.word.id))
     : null
   const isAnswered = Boolean(currentReviewResult)
   const isLastItem = currentIndex >= session.items.length - 1
   const allItemsAnswered =
     session.items.length > 0 &&
-    session.items.every((item) => reviewResults.has(item.word.id))
+    session.items.every((item) =>
+      reviewResults.has(reviewResultKey(session.id, item.word.id)),
+    )
 
   return (
     <main className="study-shell">
@@ -218,6 +249,9 @@ export function StudySessionPage({
                 {currentReviewResult.alreadyProcessed ? (
                   <span>这次提交已去重，没有重复累计学习次数。</span>
                 ) : null}
+                {currentReviewResult.restoredFromServer ? (
+                  <span>已从服务端恢复作答记录，可继续完成会话。</span>
+                ) : null}
               </div>
             ) : null}
             {completeSessionMutation.isError ? (
@@ -329,6 +363,10 @@ function getIdempotencyKey(
   const nextKey = `review_${sessionId}_${wordId}_${createRandomId()}`
   idempotencyKeys.set(key, nextKey)
   return nextKey
+}
+
+function reviewResultKey(sessionId: string, wordId: string) {
+  return `${sessionId}:${wordId}`
 }
 
 function createRandomId() {

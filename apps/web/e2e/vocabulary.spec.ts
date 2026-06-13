@@ -57,6 +57,17 @@ test('selects a vocabulary book on mobile', async ({ page }) => {
   await expect(page.getByText('作答已记录')).toBeVisible()
   await expect(page.getByText('下次复习：2026-06-15')).toBeVisible()
 
+  await page.reload()
+  await expect(page).toHaveURL(/\/study\/session\/.+/)
+  await expect(page.getByText(/已答\s+1\s+题/)).toBeVisible()
+  await expect(page.getByText('作答已记录')).toBeVisible()
+  await expect(
+    page.getByText('已从服务端恢复作答记录，可继续完成会话。'),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: '认识', exact: true }),
+  ).toBeDisabled()
+
   for (let answerIndex = 0; answerIndex < 10; answerIndex += 1) {
     if (await page.getByRole('button', { name: '完成会话' }).isVisible()) {
       break

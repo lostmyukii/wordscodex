@@ -71,6 +71,7 @@ const sessionResponse: StudySessionResponse = {
     completedAt: null,
     items: [],
   },
+  reviews: [],
 }
 
 function createStudyClient(overrides: Partial<StudyClient> = {}) {
@@ -194,6 +195,7 @@ describe('HomePage', () => {
         ...sessionResponse.session,
         mode: 'mixed',
       },
+      reviews: [],
     }
     const createSession = vi.fn().mockResolvedValue(mixedSessionResponse)
     renderHome(

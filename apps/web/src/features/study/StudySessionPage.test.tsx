@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type {
   CompleteStudySessionResponse,
   StudySessionResponse,
@@ -64,6 +64,7 @@ const sessionResponse: StudySessionResponse = {
       },
     ],
   },
+  reviews: [],
 }
 
 const twoItemSessionResponse: StudySessionResponse = {
@@ -91,6 +92,7 @@ const twoItemSessionResponse: StudySessionResponse = {
       },
     ],
   },
+  reviews: [],
 }
 
 const submitReviewResponse: SubmitReviewResponse = {
@@ -237,6 +239,7 @@ describe('StudySessionPage', () => {
             ...sessionResponse.session,
             mode: 'review',
           },
+          reviews: [],
         } satisfies StudySessionResponse),
       }),
     )
@@ -306,6 +309,55 @@ describe('StudySessionPage', () => {
       await screen.findByRole('button', { name: '完成会话' }),
     ).toBeInTheDocument()
     expect(mocks.submitReview).toHaveBeenCalledTimes(2)
+  })
+
+  it('restores answered items from the server and continues the session', async () => {
+    const restoredSession = {
+      ...twoItemSessionResponse,
+      reviews: [
+        {
+          wordId: 'word_ability',
+          questionType: 'word_to_meaning',
+          rating: 'good',
+          isCorrect: true,
+          responseMs: 4200,
+          answer: '认识',
+          reviewedAt: fixedIso,
+          progress: submitReviewResponse.progress,
+        },
+      ],
+    } satisfies StudySessionResponse
+    const { mocks, router } = renderStudySession(
+      createStudyClient({
+        getSession: vi.fn().mockResolvedValue(restoredSession),
+      }),
+    )
+
+    expect(await screen.findByText(/已答 1 题/)).toBeInTheDocument()
+    expect(await screen.findByText('作答已记录')).toBeInTheDocument()
+    expect(
+      screen.getByText('已从服务端恢复作答记录，可继续完成会话。'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '认识' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: '下一题' }))
+    expect(
+      await screen.findByRole('heading', { name: 'absorb 的中文意思是？' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '认识' }))
+    fireEvent.click(await screen.findByRole('button', { name: '完成会话' }))
+
+    expect(mocks.submitReview).toHaveBeenCalledTimes(1)
+    await waitFor(() =>
+      expect(mocks.completeSession).toHaveBeenCalledWith(
+        'session_123',
+        'access-token',
+      ),
+    )
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/study/result/session_123'),
+    )
   })
 
   it('shows a recovery link when the session cannot be loaded', async () => {

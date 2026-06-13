@@ -6,6 +6,8 @@ import type {
   SubmitReviewResult,
   StudySession,
   StudySessionMode,
+  StudySessionResponse,
+  StudySessionReview,
   StudySessionResult,
   StudySessionResultItem,
   Word,
@@ -266,7 +268,10 @@ export class PrismaStudySessionRepository {
     })
   }
 
-  async getSession(sessionId: string, userId: string) {
+  async getSession(
+    sessionId: string,
+    userId: string,
+  ): Promise<StudySessionResponse | null> {
     const session = await this.prisma.studySession.findFirst({
       where: {
         id: sessionId,
@@ -275,7 +280,12 @@ export class PrismaStudySessionRepository {
       include: sessionInclude,
     })
 
-    return session ? toStudySession(session) : null
+    if (!session) return null
+
+    return {
+      session: toStudySession(session),
+      reviews: await buildStudySessionReviews(this.prisma, session, userId),
+    }
   }
 
   async submitReview(input: {
@@ -563,6 +573,67 @@ async function buildStudySessionResult(
     },
     items,
   }
+}
+
+async function buildStudySessionReviews(
+  dataSource: StudySessionResultDataSource,
+  record: SessionRecord,
+  userId: string,
+): Promise<StudySessionReview[]> {
+  const session = toStudySession(record)
+  const wordIds = session.items.map((item) => item.word.id)
+  if (wordIds.length === 0) return []
+
+  const [reviewLogs, progressRecords] = await Promise.all([
+    dataSource.reviewLog.findMany({
+      where: {
+        sessionId: session.id,
+        userId,
+      },
+      orderBy: [
+        {
+          reviewedAt: 'asc',
+        },
+        {
+          createdAt: 'asc',
+        },
+      ],
+    }),
+    dataSource.userWordProgress.findMany({
+      where: {
+        userId,
+        wordId: {
+          in: wordIds,
+        },
+      },
+    }),
+  ])
+  const latestReviewByWordId = new Map<string, ReviewLogRecord>()
+  for (const reviewLog of reviewLogs) {
+    latestReviewByWordId.set(reviewLog.wordId, reviewLog)
+  }
+  const progressByWordId = new Map(
+    progressRecords.map((progress) => [progress.wordId, progress]),
+  )
+
+  return session.items.flatMap((item) => {
+    const reviewLog = latestReviewByWordId.get(item.word.id)
+    const progress = progressByWordId.get(item.word.id)
+    if (!reviewLog || !progress) return []
+
+    return [
+      {
+        wordId: item.word.id,
+        questionType: reviewLog.questionType,
+        rating: reviewLog.rating,
+        isCorrect: reviewLog.isCorrect,
+        responseMs: reviewLog.responseMs,
+        answer: reviewLog.answer,
+        reviewedAt: reviewLog.reviewedAt.toISOString(),
+        progress: toReviewProgress(progress),
+      },
+    ]
+  })
 }
 
 function toSrsProgressSnapshot(record: ProgressRecord): SrsProgressSnapshot {

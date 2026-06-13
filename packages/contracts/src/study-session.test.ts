@@ -122,6 +122,59 @@ describe('study session contracts', () => {
     expect(body.session.items[0]?.word.lemma).toBe('ability')
   })
 
+  it('accepts restored review state in a study session response', () => {
+    const body = studySessionResponseSchema.parse({
+      session: {
+        id: 'session_123',
+        userId: 'user_123',
+        mode: 'new_words',
+        status: 'active',
+        startedAt: fixedIso,
+        completedAt: null,
+        items: [
+          {
+            id: 'item_1',
+            position: 1,
+            questionType: 'word_to_meaning',
+            word,
+          },
+        ],
+      },
+      reviews: [
+        {
+          wordId: 'word_ability',
+          questionType: 'word_to_meaning',
+          rating: 'good',
+          isCorrect: true,
+          responseMs: 4200,
+          answer: '认识',
+          reviewedAt: fixedIso,
+          progress: {
+            masteryState: 'learning',
+            repetitions: 1,
+            consecutiveCorrect: 1,
+            correctCount: 1,
+            incorrectCount: 0,
+            easeFactor: 2.3,
+            intervalDays: 2,
+            lastReviewedAt: fixedIso,
+            nextReviewAt: '2026-06-15T00:00:00.000Z',
+            averageResponseMs: 4200,
+            lastErrorType: null,
+          },
+        },
+      ],
+    })
+
+    expect(body.reviews[0]).toMatchObject({
+      wordId: 'word_ability',
+      rating: 'good',
+      progress: {
+        nextReviewAt: '2026-06-15T00:00:00.000Z',
+      },
+    })
+  })
+
   it('accepts a submit review request and normalized progress response', () => {
     expect(
       submitReviewRequestSchema.parse({
