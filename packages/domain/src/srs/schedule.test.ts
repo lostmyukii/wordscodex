@@ -144,4 +144,124 @@ describe('calculateSrsReview', () => {
       lastErrorType: 'spelling',
     })
   })
+
+  it('keeps a mistake word in the high-priority queue before three correct recalls', () => {
+    const progress = calculateSrsReview({
+      previous: {
+        masteryState: 'mistake',
+        repetitions: 1,
+        consecutiveCorrect: 0,
+        correctCount: 0,
+        incorrectCount: 1,
+        easeFactor: 2.1,
+        intervalDays: 0,
+        lastReviewedAt: '2026-06-12T00:00:00.000Z',
+        nextReviewAt: reviewedAt.toISOString(),
+        averageResponseMs: 9_000,
+        lastErrorType: 'word_to_meaning',
+      },
+      rating: 'good',
+      isCorrect: true,
+      responseMs: 3_000,
+      questionType: 'word_to_meaning',
+      reviewedAt,
+    })
+
+    expect(progress).toMatchObject({
+      masteryState: 'mistake',
+      consecutiveCorrect: 1,
+      correctCount: 1,
+      incorrectCount: 1,
+      intervalDays: 2,
+      nextReviewAt: '2026-06-15T00:00:00.000Z',
+      lastErrorType: null,
+    })
+  })
+
+  it('keeps a lapsed word in the high-priority queue before three correct recalls', () => {
+    const progress = calculateSrsReview({
+      previous: {
+        masteryState: 'lapsed',
+        repetitions: 9,
+        consecutiveCorrect: 1,
+        correctCount: 8,
+        incorrectCount: 1,
+        easeFactor: 2.1,
+        intervalDays: 1,
+        lastReviewedAt: '2026-06-12T00:00:00.000Z',
+        nextReviewAt: reviewedAt.toISOString(),
+        averageResponseMs: 6_000,
+        lastErrorType: 'spelling',
+      },
+      rating: 'easy',
+      isCorrect: true,
+      responseMs: 2_000,
+      questionType: 'spelling',
+      reviewedAt,
+    })
+
+    expect(progress).toMatchObject({
+      masteryState: 'lapsed',
+      consecutiveCorrect: 2,
+      correctCount: 9,
+      incorrectCount: 1,
+      intervalDays: 4,
+      nextReviewAt: '2026-06-17T00:00:00.000Z',
+      lastErrorType: null,
+    })
+  })
+
+  it('returns high-priority mistake words to normal review after the third correct recall', () => {
+    const recoveredToLearning = calculateSrsReview({
+      previous: {
+        masteryState: 'mistake',
+        repetitions: 3,
+        consecutiveCorrect: 2,
+        correctCount: 2,
+        incorrectCount: 1,
+        easeFactor: 2.3,
+        intervalDays: 1,
+        lastReviewedAt: '2026-06-12T00:00:00.000Z',
+        nextReviewAt: reviewedAt.toISOString(),
+        averageResponseMs: 4_000,
+        lastErrorType: null,
+      },
+      rating: 'good',
+      isCorrect: true,
+      responseMs: 2_500,
+      questionType: 'word_to_meaning',
+      reviewedAt,
+    })
+    const recoveredToMastered = calculateSrsReview({
+      previous: {
+        masteryState: 'lapsed',
+        repetitions: 12,
+        consecutiveCorrect: 2,
+        correctCount: 11,
+        incorrectCount: 1,
+        easeFactor: 2.3,
+        intervalDays: 6,
+        lastReviewedAt: '2026-06-12T00:00:00.000Z',
+        nextReviewAt: reviewedAt.toISOString(),
+        averageResponseMs: 3_500,
+        lastErrorType: null,
+      },
+      rating: 'good',
+      isCorrect: true,
+      responseMs: 2_000,
+      questionType: 'word_to_meaning',
+      reviewedAt,
+    })
+
+    expect(recoveredToLearning).toMatchObject({
+      masteryState: 'learning',
+      consecutiveCorrect: 3,
+      intervalDays: 3,
+    })
+    expect(recoveredToMastered).toMatchObject({
+      masteryState: 'mastered',
+      consecutiveCorrect: 3,
+      intervalDays: 14,
+    })
+  })
 })

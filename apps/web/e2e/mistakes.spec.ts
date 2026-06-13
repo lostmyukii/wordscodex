@@ -1,10 +1,10 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 test.beforeEach(async ({ context }) => {
   await context.clearCookies()
 })
 
-test('adds a wrong answer to mistakes and starts drill on mobile', async ({
+test('keeps mistakes until three successful drill recalls on mobile', async ({
   page,
 }) => {
   await page.goto('/login')
@@ -53,4 +53,35 @@ test('adds a wrong answer to mistakes and starts drill on mobile', async ({
   await expect(
     page.getByRole('heading', { name: 'ability 的中文意思是？' }),
   ).toBeVisible()
+
+  await answerSingleQuestionSession(page, '认识')
+
+  await page.goto('/mistakes')
+  await expect(page.getByRole('heading', { name: '错词本' })).toBeVisible()
+  await expect(page.getByText('ability')).toBeVisible()
+  await expect(page.getByText('错词', { exact: true })).toBeVisible()
+
+  for (let recallCount = 2; recallCount <= 3; recallCount += 1) {
+    await page.getByRole('button', { name: '开始错词强化' }).click()
+    await expect(page).toHaveURL(/\/study\/session\/.+/)
+    await expect(page.getByText(/错词强化 · 共 1 题/)).toBeVisible()
+    await answerSingleQuestionSession(page, '认识')
+    await page.goto('/mistakes')
+  }
+
+  await expect(page.getByRole('heading', { name: '错词本' })).toBeVisible()
+  await expect(page.getByText('暂无错词')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: '开始错词强化' }),
+  ).toBeDisabled()
 })
+
+async function answerSingleQuestionSession(
+  page: Page,
+  answerName: '不认识' | '有点模糊' | '认识' | '很轻松',
+) {
+  await page.getByRole('button', { name: answerName, exact: true }).click()
+  await expect(page.getByText('作答已记录')).toBeVisible()
+  await page.getByRole('button', { name: '完成会话' }).click()
+  await expect(page).toHaveURL(/\/study\/result\/.+/)
+}

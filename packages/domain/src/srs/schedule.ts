@@ -165,11 +165,22 @@ function resolveMasteryState(input: {
 
   if (input.rating === 'hard') return 'fuzzy'
 
+  if (
+    isHighPriorityMistakeState(input.previousState) &&
+    input.consecutiveCorrect < 3
+  ) {
+    return input.previousState
+  }
+
   if (input.consecutiveCorrect >= 3 && input.intervalDays >= 14) {
     return 'mastered'
   }
 
   return 'learning'
+}
+
+function isHighPriorityMistakeState(state: MasteryState) {
+  return state === 'fuzzy' || state === 'mistake' || state === 'lapsed'
 }
 
 function clampEaseFactor(value: number) {
