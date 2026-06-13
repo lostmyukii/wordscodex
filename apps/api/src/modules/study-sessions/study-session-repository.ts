@@ -12,6 +12,7 @@ import type {
 } from '@wordscodex/contracts'
 import {
   calculateSrsReview,
+  sortDueReviewCandidates,
   type SrsProgressSnapshot,
 } from '@wordscodex/domain'
 import type { PrismaClient } from '../../../generated/prisma/client.js'
@@ -139,6 +140,9 @@ export class PrismaStudySessionRepository {
             nextReviewAt: {
               lte: now,
             },
+            word: {
+              vocabularyBookId: plan.vocabularyBookId,
+            },
           },
         }),
         this.prisma.vocabularyWord.count({
@@ -200,21 +204,25 @@ export class PrismaStudySessionRepository {
             nextReviewAt: {
               lte: input.now,
             },
+            word: {
+              vocabularyBookId: plan.vocabularyBookId,
+            },
           },
-          orderBy: [
-            {
-              nextReviewAt: 'asc',
-            },
-            {
-              updatedAt: 'asc',
-            },
-          ],
-          take: normalizeTake(input.reviewLimit),
           include: {
             word: true,
           },
         })
-        words.push(...dueProgress.map((progress) => progress.word))
+        const sortedDueProgress = sortDueReviewCandidates(
+          dueProgress.map((progress) => ({
+            record: progress,
+            wordId: progress.wordId,
+            masteryState: progress.masteryState,
+            nextReviewAt: progress.nextReviewAt?.toISOString() ?? null,
+            updatedAt: progress.updatedAt.toISOString(),
+          })),
+        ).slice(0, normalizeTake(input.reviewLimit))
+
+        words.push(...sortedDueProgress.map((progress) => progress.record.word))
       }
 
       if (input.mode === 'new_words' || input.mode === 'mixed') {

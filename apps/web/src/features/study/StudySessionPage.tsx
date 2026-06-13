@@ -93,6 +93,7 @@ export function StudySessionPage({
   }
 
   const session = sessionQuery.data.session
+  const sessionModeLabel = getSessionModeLabel(session.mode)
   const currentItem = session.items[currentIndex]
   const currentReviewResult = currentItem
     ? reviewResults.get(currentItem.word.id)
@@ -109,8 +110,8 @@ export function StudySessionPage({
         <p className="eyebrow">学习会话</p>
         <h1 id="session-title">学习会话</h1>
         <p className="hero-copy">
-          {session.mode === 'new_words' ? '新词学习' : '学习任务'} · 共{' '}
-          {session.items.length} 题 · 已答 {reviewResults.size} 题 ·
+          {sessionModeLabel} · 共 {session.items.length} 题 · 已答{' '}
+          {reviewResults.size} 题 ·
           {session.status === 'completed' ? ' 服务端已固化' : ' 当前会话进行中'}
         </p>
 
@@ -292,6 +293,19 @@ export function StudySessionPage({
 
 function uniquePhonetics(...values: Array<string | null>) {
   return [...new Set(values.filter((value): value is string => Boolean(value)))]
+}
+
+function getSessionModeLabel(mode: StudySession['mode']) {
+  switch (mode) {
+    case 'new_words':
+      return '新词学习'
+    case 'review':
+      return '到期复习'
+    case 'mixed':
+      return '混合学习'
+    case 'mistake_drill':
+      return '错词强化'
+  }
 }
 
 function requireAccessToken(accessToken: string | null) {

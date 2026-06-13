@@ -161,6 +161,65 @@ describe('HomePage', () => {
     expect(router.state.location.pathname).toBe('/study/session/session_123')
   })
 
+  it('starts the server recommended mixed review session', async () => {
+    const mixedToday: TodayResponse = {
+      ...today,
+      summary: {
+        ...today.summary,
+        newWordsDue: 2,
+        reviewsDue: 4,
+      },
+      tasks: [
+        {
+          type: 'review',
+          title: '到期复习',
+          count: 4,
+          description: '按 SRS 调度需要今天完成的复习。',
+        },
+        {
+          type: 'new_words',
+          title: '今日新词',
+          count: 2,
+          description: '学习计划安排的新词任务。',
+        },
+      ],
+      nextSessionRecommendation: {
+        mode: 'mixed',
+        newWordLimit: 2,
+        reviewLimit: 4,
+      },
+    }
+    const mixedSessionResponse: StudySessionResponse = {
+      session: {
+        ...sessionResponse.session,
+        mode: 'mixed',
+      },
+    }
+    const createSession = vi.fn().mockResolvedValue(mixedSessionResponse)
+    renderHome(
+      createStudyClient({
+        getToday: vi.fn().mockResolvedValue(mixedToday),
+        createSession,
+      }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: '到期复习' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '开始今日学习' }))
+
+    await waitFor(() =>
+      expect(createSession).toHaveBeenCalledWith(
+        {
+          mode: 'mixed',
+          newWordLimit: 2,
+          reviewLimit: 4,
+        },
+        'access-token',
+      ),
+    )
+  })
+
   it('points learners to onboarding when there is no active plan', async () => {
     renderHome(
       createStudyClient({

@@ -97,6 +97,15 @@ class MemoryStudySessionRepository {
   activePlan: StudyPlan | null = plan
   sessions = new Map<string, StudySession>([[session.id, session]])
   completedSessions = 0
+  dueReviewCount = 0
+  newWordsAvailable = 3
+  createSessionCalls: Array<{
+    userId: string
+    mode: StudySession['mode']
+    newWordLimit: number
+    reviewLimit: number
+    now: Date
+  }> = []
   reviewCalls: Array<{
     sessionId: string
     userId: string
@@ -113,8 +122,8 @@ class MemoryStudySessionRepository {
 
     return Promise.resolve({
       plan: this.activePlan,
-      dueReviewCount: 0,
-      newWordsAvailable: 3,
+      dueReviewCount: this.dueReviewCount,
+      newWordsAvailable: this.newWordsAvailable,
       completedSessions: this.completedSessions,
     })
   }
@@ -126,14 +135,13 @@ class MemoryStudySessionRepository {
     reviewLimit: number
     now: Date
   }) {
-    expect(input).toMatchObject({
-      userId: user.id,
-      mode: 'new_words',
-      newWordLimit: 3,
-      reviewLimit: 0,
-    })
-    this.sessions.set(session.id, session)
-    return Promise.resolve(session)
+    this.createSessionCalls.push(input)
+    const nextSession = {
+      ...session,
+      mode: input.mode,
+    }
+    this.sessions.set(nextSession.id, nextSession)
+    return Promise.resolve(nextSession)
   }
 
   getSession(sessionId: string, userId: string) {
@@ -344,6 +352,43 @@ describe('study session routes', () => {
     })
   })
 
+  it('recommends a mixed session when reviews and new words are both due', async () => {
+    repository.dueReviewCount = 4
+    repository.newWordsAvailable = 2
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/today',
+      headers: {
+        authorization: 'Bearer valid-token',
+      },
+    })
+    const body = todayResponseSchema.parse(response.json())
+
+    expect(response.statusCode).toBe(200)
+    expect(body).toMatchObject({
+      summary: {
+        newWordsDue: 2,
+        reviewsDue: 4,
+      },
+      tasks: [
+        {
+          type: 'review',
+          count: 4,
+        },
+        {
+          type: 'new_words',
+          count: 2,
+        },
+      ],
+      nextSessionRecommendation: {
+        mode: 'mixed',
+        newWordLimit: 2,
+        reviewLimit: 4,
+      },
+    })
+  })
+
   it('creates a new words study session from the recommendation', async () => {
     const response = await app.inject({
       method: 'POST',
@@ -362,6 +407,37 @@ describe('study session routes', () => {
     expect(response.statusCode).toBe(201)
     expect(body.session.items).toHaveLength(1)
     expect(body.session.items[0]?.word.lemma).toBe('ability')
+    expect(repository.createSessionCalls[0]).toMatchObject({
+      userId: user.id,
+      mode: 'new_words',
+      newWordLimit: 3,
+      reviewLimit: 0,
+    })
+  })
+
+  it('creates a review study session from the recommendation', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/study-sessions',
+      headers: {
+        authorization: 'Bearer valid-token',
+      },
+      payload: {
+        mode: 'review',
+        newWordLimit: 0,
+        reviewLimit: 4,
+      },
+    })
+    const body = studySessionResponseSchema.parse(response.json())
+
+    expect(response.statusCode).toBe(201)
+    expect(body.session.mode).toBe('review')
+    expect(repository.createSessionCalls[0]).toMatchObject({
+      userId: user.id,
+      mode: 'review',
+      newWordLimit: 0,
+      reviewLimit: 4,
+    })
   })
 
   it('returns a session that belongs to the current user', async () => {

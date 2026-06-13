@@ -229,6 +229,21 @@ describe('StudySessionPage', () => {
     expect(screen.getByRole('button', { name: '认识' })).toBeInTheDocument()
   })
 
+  it('labels review sessions as due review tasks', async () => {
+    renderStudySession(
+      createStudyClient({
+        getSession: vi.fn().mockResolvedValue({
+          session: {
+            ...sessionResponse.session,
+            mode: 'review',
+          },
+        } satisfies StudySessionResponse),
+      }),
+    )
+
+    expect(await screen.findByText(/到期复习 · 共 1 题/)).toBeInTheDocument()
+  })
+
   it('submits an active recall answer with an idempotency key', async () => {
     const { mocks } = renderStudySession()
 

@@ -7,6 +7,10 @@ export {
   type TodayTaskType,
 } from './today/tasks.js'
 export {
+  sortDueReviewCandidates,
+  type DueReviewCandidate,
+} from './today/review-queue.js'
+export {
   calculateSrsReview,
   type CalculateSrsReviewInput,
   type MasteryState,

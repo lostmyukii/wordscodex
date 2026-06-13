@@ -536,6 +536,12 @@ GET    /api/v1/study-sessions/:sessionId/result
 并在所有题目完成作答后标记会话完成、生成学习结果。`GET /api/v1/today` 会根据当日 completed
 会话返回 `canCheckIn`，实际打卡写入接口属于后续打卡模块范围。
 
+当前 Stage 2 已开始落地到期复习队列：`GET /api/v1/today` 的复习计数限定在当前 active
+计划词库内，`POST /api/v1/study-sessions` 创建 `review` 或 `mixed` 会话时会按
+`mistake → lapsed → fuzzy → learning → mastered` 优先级选择到期复习词，并在前端学习页明确展示
+`到期复习`、`混合学习` 和 `错词强化` 等会话类型。错词本页面、消灭模式和离线会话恢复仍属于后续 Stage 2
+任务。
+
 创建会话请求：
 
 ```json
@@ -827,8 +833,8 @@ OBJECT_STORAGE_SECRET_KEY
 
 ### 阶段 2：复习与错词闭环
 
-- SRS v1；
-- 到期复习队列；
+- SRS v1（已落地基础调度、掌握状态转换和幂等 ReviewLog）；
+- 到期复习队列（已落地 active 计划词库过滤、优先级排序和 review/mixed 会话创建）；
 - 错词本和消灭模式；
 - 幂等学习记录；
 - 学习会话恢复。
