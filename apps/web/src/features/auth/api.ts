@@ -27,13 +27,15 @@ async function request<T>(
   init: RequestInit,
   parse: (value: unknown) => T,
 ) {
+  const headers = new Headers(init.headers)
+  if (init.body && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json')
+  }
+
   const response = await fetch(`${apiOrigin}/api/v1${path}`, {
     ...init,
     credentials: 'include',
-    headers: {
-      'content-type': 'application/json',
-      ...init.headers,
-    },
+    headers,
   })
   const body: unknown = response.status === 204 ? null : await response.json()
 

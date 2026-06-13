@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { errorResponseSchema } from './auth.js'
 import {
+  completeStudySessionResponseSchema,
   createStudySessionRequestSchema,
   reviewProgressSchema,
+  studySessionResultResponseSchema,
   submitReviewRequestSchema,
   submitReviewResponseSchema,
   studySessionResponseSchema,
@@ -161,6 +163,60 @@ describe('study session contracts', () => {
     })
   })
 
+  it('accepts a completed study session result response', () => {
+    const result = {
+      session: {
+        id: 'session_123',
+        userId: 'user_123',
+        mode: 'new_words',
+        status: 'completed',
+        startedAt: fixedIso,
+        completedAt: '2026-06-13T00:05:00.000Z',
+        items: [
+          {
+            id: 'item_1',
+            position: 1,
+            questionType: 'word_to_meaning',
+            word,
+          },
+        ],
+      },
+      summary: {
+        totalItems: 1,
+        answeredItems: 1,
+        correctCount: 1,
+        incorrectCount: 0,
+        accuracyRate: 1,
+        totalResponseMs: 4200,
+        completedAt: '2026-06-13T00:05:00.000Z',
+        canCheckIn: true,
+      },
+      items: [
+        {
+          word,
+          questionType: 'word_to_meaning',
+          rating: 'good',
+          isCorrect: true,
+          responseMs: 4200,
+          answer: '认识',
+          reviewedAt: fixedIso,
+          masteryState: 'learning',
+          nextReviewAt: '2026-06-15T00:00:00.000Z',
+        },
+      ],
+    }
+
+    expect(studySessionResultResponseSchema.parse({ result })).toEqual({
+      result,
+    })
+    expect(
+      completeStudySessionResponseSchema.parse({
+        session: result.session,
+        result,
+      }).result.summary.canCheckIn,
+    ).toBe(true)
+  })
+
   it('accepts stable study session error codes', () => {
     expect(
       errorResponseSchema.parse({
@@ -191,5 +247,15 @@ describe('study session contracts', () => {
         },
       }).error.code,
     ).toBe('IDEMPOTENCY_KEY_REQUIRED')
+
+    expect(
+      errorResponseSchema.parse({
+        error: {
+          code: 'STUDY_SESSION_INCOMPLETE',
+          message: '还有题目没有完成作答。',
+          requestId: 'req_123',
+        },
+      }).error.code,
+    ).toBe('STUDY_SESSION_INCOMPLETE')
   })
 })

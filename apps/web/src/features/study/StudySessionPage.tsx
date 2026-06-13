@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { ReviewRating, StudySession } from '@wordscodex/contracts'
 import { useAuthStore } from '../auth/auth-store'
 import { studyApi, type StudyClient } from './api'
@@ -13,12 +13,14 @@ export function StudySessionPage({
   studyApi: client = studyApi,
 }: StudySessionPageProps) {
   const { sessionId = '' } = useParams()
+  const navigate = useNavigate()
   const accessToken = useAuthStore((state) => state.accessToken)
   const reviewStartedAtMs = useRef(Date.now())
   const idempotencyKeys = useRef(new Map<string, string>())
-  const [reviewResult, setReviewResult] = useState<Awaited<
-    ReturnType<StudyClient['submitReview']>
-  > | null>(null)
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [reviewResults, setReviewResults] = useState<
+    Map<string, Awaited<ReturnType<StudyClient['submitReview']>>>
+  >(() => new Map())
   const sessionQuery = useQuery({
     queryKey: ['study-session', sessionId],
     queryFn: () =>
@@ -55,8 +57,19 @@ export function StudySessionPage({
         token,
       )
     },
-    onSuccess(result) {
-      setReviewResult(result)
+    onSuccess(result, input) {
+      setReviewResults((previous) => {
+        const nextResults = new Map(previous)
+        nextResults.set(input.wordId, result)
+        return nextResults
+      })
+    },
+  })
+  const completeSessionMutation = useMutation({
+    mutationFn: (targetSessionId: string) =>
+      client.completeSession(targetSessionId, requireAccessToken(accessToken)),
+    onSuccess(response) {
+      void navigate(`/study/result/${response.session.id}`)
     },
   })
 
@@ -80,8 +93,15 @@ export function StudySessionPage({
   }
 
   const session = sessionQuery.data.session
-  const currentItem = session.items[0]
-  const isAnswered = Boolean(reviewResult)
+  const currentItem = session.items[currentIndex]
+  const currentReviewResult = currentItem
+    ? reviewResults.get(currentItem.word.id)
+    : null
+  const isAnswered = Boolean(currentReviewResult)
+  const isLastItem = currentIndex >= session.items.length - 1
+  const allItemsAnswered =
+    session.items.length > 0 &&
+    session.items.every((item) => reviewResults.has(item.word.id))
 
   return (
     <main className="study-shell">
@@ -90,7 +110,8 @@ export function StudySessionPage({
         <h1 id="session-title">学习会话</h1>
         <p className="hero-copy">
           {session.mode === 'new_words' ? '新词学习' : '学习任务'} · 共{' '}
-          {session.items.length} 题 · 当前会话已由服务端固化
+          {session.items.length} 题 · 已答 {reviewResults.size} 题 ·
+          {session.status === 'completed' ? ' 服务端已固化' : ' 当前会话进行中'}
         </p>
 
         {currentItem ? (
@@ -186,16 +207,22 @@ export function StudySessionPage({
                 {getErrorMessage(submitReviewMutation.error)}
               </p>
             ) : null}
-            {reviewResult ? (
+            {currentReviewResult ? (
               <div className="review-feedback" role="status">
                 <strong>作答已记录</strong>
                 <span>
-                  下次复习：{formatDateKey(reviewResult.progress.nextReviewAt)}
+                  下次复习：
+                  {formatDateKey(currentReviewResult.progress.nextReviewAt)}
                 </span>
-                {reviewResult.alreadyProcessed ? (
+                {currentReviewResult.alreadyProcessed ? (
                   <span>这次提交已去重，没有重复累计学习次数。</span>
                 ) : null}
               </div>
+            ) : null}
+            {completeSessionMutation.isError ? (
+              <p className="form-alert">
+                {getErrorMessage(completeSessionMutation.error)}
+              </p>
             ) : null}
             {isAnswered ? (
               <>
@@ -215,6 +242,27 @@ export function StudySessionPage({
                     </footer>
                   </blockquote>
                 ) : null}
+                {!isLastItem ? (
+                  <button
+                    className="primary-action"
+                    type="button"
+                    onClick={goToNextItem}
+                  >
+                    下一题
+                  </button>
+                ) : null}
+              </>
+            ) : null}
+            {allItemsAnswered ? (
+              <>
+                <button
+                  className="primary-action"
+                  disabled={completeSessionMutation.isPending}
+                  type="button"
+                  onClick={() => completeSessionMutation.mutate(session.id)}
+                >
+                  完成会话
+                </button>
               </>
             ) : null}
           </article>
@@ -234,6 +282,11 @@ export function StudySessionPage({
     answer: string
   }) {
     submitReviewMutation.mutate(input)
+  }
+
+  function goToNextItem() {
+    setCurrentIndex((value) => Math.min(value + 1, session.items.length - 1))
+    reviewStartedAtMs.current = Date.now()
   }
 }
 

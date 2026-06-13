@@ -1,12 +1,16 @@
 import {
+  completeStudySessionResponseSchema,
   createStudySessionRequestSchema,
   errorResponseSchema,
+  studySessionResultResponseSchema,
   submitReviewRequestSchema,
   submitReviewResponseSchema,
   studySessionResponseSchema,
   todayResponseSchema,
+  type CompleteStudySessionResponse,
   type CreateStudySessionRequest,
   type StudySessionResponse,
+  type StudySessionResultResponse,
   type SubmitReviewRequest,
   type SubmitReviewResponse,
   type TodayResponse,
@@ -31,14 +35,16 @@ async function request<T>(
   accessToken: string,
   parse: (value: unknown) => T,
 ) {
+  const headers = new Headers(init.headers)
+  headers.set('authorization', `Bearer ${accessToken}`)
+  if (init.body && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json')
+  }
+
   const response = await fetch(`${apiOrigin}/api/v1${path}`, {
     ...init,
     credentials: 'include',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${accessToken}`,
-      ...init.headers,
-    },
+    headers,
   })
   const body: unknown = await response.json()
 
@@ -66,6 +72,14 @@ export type StudyClient = {
     idempotencyKey: string,
     accessToken: string,
   ): Promise<SubmitReviewResponse>
+  completeSession(
+    sessionId: string,
+    accessToken: string,
+  ): Promise<CompleteStudySessionResponse>
+  getSessionResult(
+    sessionId: string,
+    accessToken: string,
+  ): Promise<StudySessionResultResponse>
 }
 
 export const studyApi: StudyClient = {
@@ -116,6 +130,26 @@ export const studyApi: StudyClient = {
       },
       accessToken,
       (value) => submitReviewResponseSchema.parse(value),
+    )
+  },
+  completeSession(sessionId, accessToken) {
+    return request(
+      `/study-sessions/${encodeURIComponent(sessionId)}/complete`,
+      {
+        method: 'POST',
+      },
+      accessToken,
+      (value) => completeStudySessionResponseSchema.parse(value),
+    )
+  },
+  getSessionResult(sessionId, accessToken) {
+    return request(
+      `/study-sessions/${encodeURIComponent(sessionId)}/result`,
+      {
+        method: 'GET',
+      },
+      accessToken,
+      (value) => studySessionResultResponseSchema.parse(value),
     )
   },
 }

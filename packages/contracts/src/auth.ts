@@ -54,6 +54,7 @@ export const apiErrorCodeSchema = z.enum([
   'NO_ACTIVE_STUDY_PLAN',
   'EMPTY_STUDY_SESSION',
   'IDEMPOTENCY_KEY_REQUIRED',
+  'STUDY_SESSION_INCOMPLETE',
 ])
 
 export const errorResponseSchema = z.object({

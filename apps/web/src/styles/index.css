@@ -672,6 +672,96 @@ input:focus-visible {
   color: #254b20;
 }
 
+.checkin-card {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #dce3d4;
+  border-radius: 18px;
+  padding: 14px 16px;
+  color: #586174;
+  background: #f8fbf4;
+}
+
+.checkin-card.ready {
+  border-color: #c9ddbd;
+  color: #335e2b;
+  background: #eff7ea;
+}
+
+.checkin-card strong {
+  color: #172032;
+  font-size: 18px;
+}
+
+.checkin-card.ready strong {
+  color: #254b20;
+}
+
+.result-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.result-summary-grid div {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dce3d4;
+  border-radius: 18px;
+  padding: 16px;
+  background: #f8fbf4;
+}
+
+.result-summary-grid span {
+  color: #52743d;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.result-summary-grid strong {
+  color: #172032;
+  font-size: 28px;
+}
+
+.result-item-list {
+  display: grid;
+  gap: 12px;
+}
+
+.result-item-card {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #dce3d4;
+  border-radius: 18px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.result-item-card h2,
+.result-item-card p,
+.result-item-card span {
+  margin: 0;
+}
+
+.result-item-card h2 {
+  font-size: 24px;
+}
+
+.result-item-card p,
+.result-item-card span {
+  color: #586174;
+  line-height: 1.6;
+}
+
+.result-item-card > div:last-child {
+  display: grid;
+  gap: 6px;
+  text-align: right;
+}
+
 @media (max-width: 480px) {
   .app-shell {
     padding: 16px;
@@ -705,6 +795,19 @@ input:focus-visible {
 
   .answer-actions {
     grid-template-columns: 1fr;
+  }
+
+  .result-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .result-item-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .result-item-card > div:last-child {
+    text-align: left;
   }
 }
 

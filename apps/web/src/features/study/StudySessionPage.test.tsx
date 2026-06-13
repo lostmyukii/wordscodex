@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type {
+  CompleteStudySessionResponse,
   StudySessionResponse,
   SubmitReviewResponse,
   User,
@@ -65,6 +66,33 @@ const sessionResponse: StudySessionResponse = {
   },
 }
 
+const twoItemSessionResponse: StudySessionResponse = {
+  session: {
+    ...sessionResponse.session,
+    items: [
+      sessionResponse.session.items[0]!,
+      {
+        id: 'item_2',
+        position: 2,
+        questionType: 'word_to_meaning',
+        word: {
+          ...sessionResponse.session.items[0]!.word,
+          id: 'word_absorb',
+          lemma: 'absorb',
+          meanings: [
+            {
+              partOfSpeech: 'v.',
+              definitionZh: '吸收；理解',
+              definitionEn: 'to take in or understand information',
+            },
+          ],
+          examples: [],
+        },
+      },
+    ],
+  },
+}
+
 const submitReviewResponse: SubmitReviewResponse = {
   progress: {
     masteryState: 'learning',
@@ -82,12 +110,52 @@ const submitReviewResponse: SubmitReviewResponse = {
   alreadyProcessed: false,
 }
 
+const completeSessionResponse: CompleteStudySessionResponse = {
+  session: {
+    ...sessionResponse.session,
+    status: 'completed',
+    completedAt: '2026-06-13T00:05:00.000Z',
+  },
+  result: {
+    session: {
+      ...sessionResponse.session,
+      status: 'completed',
+      completedAt: '2026-06-13T00:05:00.000Z',
+    },
+    summary: {
+      totalItems: 1,
+      answeredItems: 1,
+      correctCount: 1,
+      incorrectCount: 0,
+      accuracyRate: 1,
+      totalResponseMs: 4200,
+      completedAt: '2026-06-13T00:05:00.000Z',
+      canCheckIn: true,
+    },
+    items: [
+      {
+        word: sessionResponse.session.items[0]!.word,
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '认识',
+        reviewedAt: fixedIso,
+        masteryState: 'learning',
+        nextReviewAt: '2026-06-15T00:00:00.000Z',
+      },
+    ],
+  },
+}
+
 function createStudyClient(overrides: Partial<StudyClient> = {}) {
   const mocks = {
     getToday: vi.fn(),
     createSession: vi.fn(),
     getSession: vi.fn().mockResolvedValue(sessionResponse),
     submitReview: vi.fn().mockResolvedValue(submitReviewResponse),
+    completeSession: vi.fn().mockResolvedValue(completeSessionResponse),
+    getSessionResult: vi.fn(),
   }
 
   return {
@@ -116,6 +184,10 @@ function renderStudySession(setup = createStudyClient()) {
       {
         path: '/home',
         element: <h1>今日任务</h1>,
+      },
+      {
+        path: '/study/result/:sessionId',
+        element: <h1>学习结果</h1>,
       },
     ],
     {
@@ -180,6 +252,45 @@ describe('StudySessionPage', () => {
       expect.stringMatching(/^review_session_123_word_ability_/),
       'access-token',
     )
+  })
+
+  it('completes the answered session and navigates to the result page', async () => {
+    const { mocks, router } = renderStudySession()
+
+    fireEvent.click(await screen.findByRole('button', { name: '认识' }))
+    fireEvent.click(await screen.findByRole('button', { name: '完成会话' }))
+
+    expect(
+      await screen.findByRole('heading', { name: '学习结果' }),
+    ).toBeInTheDocument()
+    expect(mocks.completeSession).toHaveBeenCalledWith(
+      'session_123',
+      'access-token',
+    )
+    expect(router.state.location.pathname).toBe('/study/result/session_123')
+  })
+
+  it('moves through every session item before allowing completion', async () => {
+    const { mocks } = renderStudySession(
+      createStudyClient({
+        getSession: vi.fn().mockResolvedValue(twoItemSessionResponse),
+      }),
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: '认识' }))
+    fireEvent.click(await screen.findByRole('button', { name: '下一题' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'absorb 的中文意思是？' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '完成会话' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '认识' }))
+
+    expect(
+      await screen.findByRole('button', { name: '完成会话' }),
+    ).toBeInTheDocument()
+    expect(mocks.submitReview).toHaveBeenCalledTimes(2)
   })
 
   it('shows a recovery link when the session cannot be loaded', async () => {

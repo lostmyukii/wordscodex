@@ -1,11 +1,15 @@
 import {
+  completeStudySessionResponseSchema,
   createStudySessionRequestSchema,
+  studySessionResultResponseSchema,
   submitReviewRequestSchema,
   submitReviewResponseSchema,
   studySessionResponseSchema,
   todayResponseSchema,
+  type CompleteStudySessionResponse,
   type StudyPlan,
   type StudySession,
+  type StudySessionResult,
   type SubmitReviewRequest,
   type SubmitReviewResult,
 } from '@wordscodex/contracts'
@@ -16,6 +20,7 @@ import { HttpError } from '../../shared/http-error.js'
 import type { AuthService } from '../auth/auth-service.js'
 
 export class EmptyStudySessionError extends Error {}
+export class IncompleteStudySessionError extends Error {}
 export class NoActiveStudyPlanError extends Error {}
 
 export type TodayOverview = {
@@ -42,6 +47,15 @@ export type StudySessionRepository = {
     review: SubmitReviewRequest
     now: Date
   }): Promise<SubmitReviewResult | null>
+  completeSession(input: {
+    sessionId: string
+    userId: string
+    now: Date
+  }): Promise<CompleteStudySessionResponse | null>
+  getSessionResult(
+    sessionId: string,
+    userId: string,
+  ): Promise<StudySessionResult | null>
 }
 
 type StudySessionRoutesOptions = {
@@ -172,6 +186,49 @@ export const studySessionRoutes: FastifyPluginCallback<
     return reply
       .code(result.alreadyProcessed ? 200 : 201)
       .send(submitReviewResponseSchema.parse(result))
+  })
+
+  app.post('/study-sessions/:sessionId/complete', async (request) => {
+    const user = await requireCurrentUser(request, options.authService)
+    const sessionId = getSessionId(request.params)
+
+    try {
+      const result = await options.studySessionRepository.completeSession({
+        sessionId,
+        userId: user.id,
+        now: options.clock(),
+      })
+
+      if (!result) {
+        throw new HttpError(404, 'NOT_FOUND', '学习会话不存在。')
+      }
+
+      return completeStudySessionResponseSchema.parse(result)
+    } catch (error) {
+      if (error instanceof IncompleteStudySessionError) {
+        throw new HttpError(
+          409,
+          'STUDY_SESSION_INCOMPLETE',
+          '还有题目没有完成作答。',
+        )
+      }
+      throw error
+    }
+  })
+
+  app.get('/study-sessions/:sessionId/result', async (request) => {
+    const user = await requireCurrentUser(request, options.authService)
+    const sessionId = getSessionId(request.params)
+    const result = await options.studySessionRepository.getSessionResult(
+      sessionId,
+      user.id,
+    )
+
+    if (!result) {
+      throw new HttpError(404, 'NOT_FOUND', '学习结果不存在。')
+    }
+
+    return studySessionResultResponseSchema.parse({ result })
   })
 
   done()

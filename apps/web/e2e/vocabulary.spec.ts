@@ -56,4 +56,27 @@ test('selects a vocabulary book on mobile', async ({ page }) => {
 
   await expect(page.getByText('作答已记录')).toBeVisible()
   await expect(page.getByText('下次复习：2026-06-15')).toBeVisible()
+
+  for (let answerIndex = 0; answerIndex < 10; answerIndex += 1) {
+    if (await page.getByRole('button', { name: '完成会话' }).isVisible()) {
+      break
+    }
+
+    await page.getByRole('button', { name: '下一题' }).click()
+    await page.getByRole('button', { name: '认识', exact: true }).click()
+    await expect(page.getByText('作答已记录')).toBeVisible()
+  }
+
+  await page.getByRole('button', { name: '完成会话' }).click()
+
+  await expect(page).toHaveURL(/\/study\/result\/.+/)
+  await expect(page.getByRole('heading', { name: '学习结果' })).toBeVisible()
+  await expect(page.getByText('正确率 100%')).toBeVisible()
+  await expect(page.getByText('今日已满足打卡条件')).toBeVisible()
+
+  await page.getByRole('link', { name: '返回今日任务' }).click()
+
+  await expect(page).toHaveURL('/home')
+  await expect(page.getByText('可打卡')).toBeVisible()
+  await expect(page.getByText('今天已完成 1 个学习会话')).toBeVisible()
 })

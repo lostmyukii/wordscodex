@@ -15,14 +15,22 @@ export function AppProviders({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let active = true
+    const refreshStartedAccessToken = useAuthStore.getState().accessToken
+    const hasNewerLocalSession = () =>
+      useAuthStore.getState().accessToken !== refreshStartedAccessToken
 
     void authApi
       .refresh()
       .then((session) => {
-        if (active) setSession(session)
+        if (!active || hasNewerLocalSession()) return
+        setSession(session)
       })
       .catch((error: unknown) => {
         if (!active) return
+        if (hasNewerLocalSession()) {
+          finishInitialization()
+          return
+        }
         if (error instanceof AuthApiError && error.code === 'UNAUTHORIZED') {
           clearSession()
           return

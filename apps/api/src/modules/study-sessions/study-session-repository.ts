@@ -1,10 +1,13 @@
 import type {
+  CompleteStudySessionResponse,
   QuestionType,
   ReviewProgress,
   SubmitReviewRequest,
   SubmitReviewResult,
   StudySession,
   StudySessionMode,
+  StudySessionResult,
+  StudySessionResultItem,
   Word,
 } from '@wordscodex/contracts'
 import {
@@ -14,6 +17,7 @@ import {
 import type { PrismaClient } from '../../../generated/prisma/client.js'
 import {
   EmptyStudySessionError,
+  IncompleteStudySessionError,
   NoActiveStudyPlanError,
   type TodayOverview,
 } from './study-session-routes.js'
@@ -66,6 +70,7 @@ type StudyPlanRecord = {
 }
 
 type ProgressRecord = {
+  wordId?: string
   masteryState: SrsProgressSnapshot['masteryState']
   repetitions: number
   consecutiveCorrect: number
@@ -77,6 +82,39 @@ type ProgressRecord = {
   nextReviewAt: Date | null
   averageResponseMs: number | null
   lastErrorType: QuestionType | null
+}
+
+type ReviewLogRecord = {
+  wordId: string
+  questionType: QuestionType
+  rating: 'again' | 'hard' | 'good' | 'easy'
+  isCorrect: boolean
+  responseMs: number
+  answer: string | null
+  reviewedAt: Date
+  createdAt: Date
+}
+
+type StudySessionResultDataSource = {
+  reviewLog: {
+    findMany(input: {
+      where: {
+        sessionId: string
+        userId: string
+      }
+      orderBy: Array<Record<string, 'asc' | 'desc'>>
+    }): Promise<ReviewLogRecord[]>
+  }
+  userWordProgress: {
+    findMany(input: {
+      where: {
+        userId: string
+        wordId: {
+          in: string[]
+        }
+      }
+    }): Promise<Array<ProgressRecord & { wordId: string }>>
+  }
 }
 
 export class PrismaStudySessionRepository {
@@ -347,6 +385,90 @@ export class PrismaStudySessionRepository {
     })
   }
 
+  async completeSession(input: {
+    sessionId: string
+    userId: string
+    now: Date
+  }): Promise<CompleteStudySessionResponse | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const session = await tx.studySession.findFirst({
+        where: {
+          id: input.sessionId,
+          userId: input.userId,
+        },
+        include: sessionInclude,
+      })
+
+      if (!session) return null
+
+      if (session.status !== 'completed') {
+        const reviewLogs = await tx.reviewLog.findMany({
+          where: {
+            sessionId: input.sessionId,
+            userId: input.userId,
+          },
+          orderBy: [
+            {
+              reviewedAt: 'asc',
+            },
+            {
+              createdAt: 'asc',
+            },
+          ],
+        })
+        const reviewedWordIds = new Set(
+          reviewLogs.map((reviewLog) => reviewLog.wordId),
+        )
+
+        if (!session.items.every((item) => reviewedWordIds.has(item.word.id))) {
+          throw new IncompleteStudySessionError()
+        }
+      }
+
+      const completedSession =
+        session.status === 'completed'
+          ? session
+          : await tx.studySession.update({
+              where: {
+                id: input.sessionId,
+              },
+              data: {
+                status: 'completed',
+                completedAt: input.now,
+              },
+              include: sessionInclude,
+            })
+      const result = await buildStudySessionResult(
+        tx,
+        completedSession,
+        input.userId,
+      )
+
+      return {
+        session: toStudySession(completedSession),
+        result,
+      }
+    })
+  }
+
+  async getSessionResult(
+    sessionId: string,
+    userId: string,
+  ): Promise<StudySessionResult | null> {
+    const session = await this.prisma.studySession.findFirst({
+      where: {
+        id: sessionId,
+        userId,
+        status: 'completed',
+      },
+      include: sessionInclude,
+    })
+
+    if (!session) return null
+
+    return buildStudySessionResult(this.prisma, session, userId)
+  }
+
   private findActivePlan(userId: string) {
     return this.prisma.studyPlan.findFirst({
       where: {
@@ -357,6 +479,81 @@ export class PrismaStudySessionRepository {
         startedAt: 'desc',
       },
     })
+  }
+}
+
+async function buildStudySessionResult(
+  dataSource: StudySessionResultDataSource,
+  record: SessionRecord,
+  userId: string,
+): Promise<StudySessionResult> {
+  const session = toStudySession(record)
+  const wordIds = session.items.map((item) => item.word.id)
+  const [reviewLogs, progressRecords] = await Promise.all([
+    dataSource.reviewLog.findMany({
+      where: {
+        sessionId: session.id,
+        userId,
+      },
+      orderBy: [
+        {
+          reviewedAt: 'asc',
+        },
+        {
+          createdAt: 'asc',
+        },
+      ],
+    }),
+    dataSource.userWordProgress.findMany({
+      where: {
+        userId,
+        wordId: {
+          in: wordIds,
+        },
+      },
+    }),
+  ])
+  const latestReviewByWordId = new Map<string, ReviewLogRecord>()
+  for (const reviewLog of reviewLogs) {
+    latestReviewByWordId.set(reviewLog.wordId, reviewLog)
+  }
+  const progressByWordId = new Map(
+    progressRecords.map((progress) => [progress.wordId, progress]),
+  )
+  const items: StudySessionResultItem[] = session.items.flatMap((item) => {
+    const reviewLog = latestReviewByWordId.get(item.word.id)
+    const progress = progressByWordId.get(item.word.id)
+    if (!reviewLog || !progress) return []
+
+    return [
+      {
+        word: item.word,
+        questionType: reviewLog.questionType,
+        rating: reviewLog.rating,
+        isCorrect: reviewLog.isCorrect,
+        responseMs: reviewLog.responseMs,
+        answer: reviewLog.answer,
+        reviewedAt: reviewLog.reviewedAt.toISOString(),
+        masteryState: progress.masteryState,
+        nextReviewAt: progress.nextReviewAt?.toISOString() ?? null,
+      },
+    ]
+  })
+  const correctCount = items.filter((item) => item.isCorrect).length
+
+  return {
+    session,
+    summary: {
+      totalItems: session.items.length,
+      answeredItems: items.length,
+      correctCount,
+      incorrectCount: items.length - correctCount,
+      accuracyRate: items.length === 0 ? 0 : correctCount / items.length,
+      totalResponseMs: items.reduce((sum, item) => sum + item.responseMs, 0),
+      completedAt: session.completedAt,
+      canCheckIn: session.status === 'completed',
+    },
+    items,
   }
 }
 

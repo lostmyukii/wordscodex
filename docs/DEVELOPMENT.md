@@ -529,10 +529,12 @@ GET    /api/v1/study-sessions/:sessionId/result
 ```
 
 当前 Stage 1 已落地 `GET /api/v1/today`、`POST /api/v1/study-sessions`、
-`GET /api/v1/study-sessions/:sessionId` 和
-`POST /api/v1/study-sessions/:sessionId/reviews`：服务端根据 active 学习计划返回今日任务，
-固化首个新词学习会话的题目顺序，并通过 `ReviewLog` 与 `UserWordProgress` 完成一次主动回忆提交。
-完成会话、结果页和打卡条件收口属于下一步范围，不能把“单题作答成功”视为完整学习会话已完成。
+`GET /api/v1/study-sessions/:sessionId`、`POST /api/v1/study-sessions/:sessionId/reviews`、
+`POST /api/v1/study-sessions/:sessionId/complete` 和
+`GET /api/v1/study-sessions/:sessionId/result`：服务端根据 active 学习计划返回今日任务，
+固化首个新词学习会话的题目顺序，通过 `ReviewLog` 与 `UserWordProgress` 完成主动回忆提交，
+并在所有题目完成作答后标记会话完成、生成学习结果。`GET /api/v1/today` 会根据当日 completed
+会话返回 `canCheckIn`，实际打卡写入接口属于后续打卡模块范围。
 
 创建会话请求：
 

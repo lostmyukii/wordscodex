@@ -1,9 +1,12 @@
 import {
+  completeStudySessionResponseSchema,
   errorResponseSchema,
+  studySessionResultResponseSchema,
   submitReviewResponseSchema,
   studySessionResponseSchema,
   todayResponseSchema,
   type StudyPlan,
+  type StudySessionResult,
   type SubmitReviewRequest,
   type SubmitReviewResult,
   type StudySession,
@@ -13,6 +16,7 @@ import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../../app.js'
 import { AuthServiceError, type AuthService } from '../auth/auth-service.js'
+import { IncompleteStudySessionError } from './study-session-routes.js'
 
 const fixedNow = new Date('2026-06-13T00:00:00.000Z')
 const fixedIso = fixedNow.toISOString()
@@ -92,6 +96,7 @@ const session: StudySession = {
 class MemoryStudySessionRepository {
   activePlan: StudyPlan | null = plan
   sessions = new Map<string, StudySession>([[session.id, session]])
+  completedSessions = 0
   reviewCalls: Array<{
     sessionId: string
     userId: string
@@ -110,7 +115,7 @@ class MemoryStudySessionRepository {
       plan: this.activePlan,
       dueReviewCount: 0,
       newWordsAvailable: 3,
-      completedSessions: 0,
+      completedSessions: this.completedSessions,
     })
   }
 
@@ -188,6 +193,94 @@ class MemoryStudySessionRepository {
     this.processedKeys.set(input.idempotencyKey, result)
 
     return Promise.resolve(result)
+  }
+
+  completeSession(input: { sessionId: string; userId: string; now: Date }) {
+    const candidate = this.sessions.get(input.sessionId)
+    if (!candidate || candidate.userId !== input.userId) {
+      return Promise.resolve(null)
+    }
+
+    const reviewedWordIds = new Set(
+      this.reviewCalls
+        .filter((call) => call.sessionId === input.sessionId)
+        .map((call) => call.input.wordId),
+    )
+
+    if (!candidate.items.every((item) => reviewedWordIds.has(item.word.id))) {
+      throw new IncompleteStudySessionError()
+    }
+
+    const completedSession = {
+      ...candidate,
+      status: 'completed' as const,
+      completedAt: input.now.toISOString(),
+    }
+    this.sessions.set(input.sessionId, completedSession)
+    this.completedSessions = 1
+
+    return Promise.resolve({
+      session: completedSession,
+      result: buildResult(completedSession, this.reviewCalls),
+    })
+  }
+
+  getSessionResult(sessionId: string, userId: string) {
+    const candidate = this.sessions.get(sessionId)
+    if (
+      !candidate ||
+      candidate.userId !== userId ||
+      candidate.status !== 'completed'
+    ) {
+      return Promise.resolve(null)
+    }
+
+    return Promise.resolve(buildResult(candidate, this.reviewCalls))
+  }
+}
+
+function buildResult(
+  candidate: StudySession,
+  reviewCalls: MemoryStudySessionRepository['reviewCalls'],
+): StudySessionResult {
+  const reviewsByWordId = new Map(
+    reviewCalls
+      .filter((call) => call.sessionId === candidate.id)
+      .map((call) => [call.input.wordId, call]),
+  )
+  const items = candidate.items.flatMap((item) => {
+    const review = reviewsByWordId.get(item.word.id)
+    if (!review) return []
+
+    return [
+      {
+        word: item.word,
+        questionType: item.questionType,
+        rating: review.input.rating,
+        isCorrect: review.input.isCorrect,
+        responseMs: review.input.responseMs,
+        answer: review.input.answer,
+        reviewedAt: review.input.reviewedAt,
+        masteryState: 'learning' as const,
+        nextReviewAt: '2026-06-15T00:00:00.000Z',
+      },
+    ]
+  })
+  const correctCount = items.filter((item) => item.isCorrect).length
+
+  return {
+    session: candidate,
+    summary: {
+      totalItems: candidate.items.length,
+      answeredItems: items.length,
+      correctCount,
+      incorrectCount: items.length - correctCount,
+      accuracyRate: items.length === 0 ? 0 : correctCount / items.length,
+      totalResponseMs: items.reduce((sum, item) => sum + item.responseMs, 0),
+      completedAt: candidate.completedAt,
+      canCheckIn: candidate.status === 'completed',
+    },
+    items,
   }
 }
 
@@ -412,6 +505,150 @@ describe('study session routes', () => {
         responseMs: 4200,
         answer: '能力；才能',
         reviewedAt: fixedIso,
+      },
+    })
+    const body = errorResponseSchema.parse(response.json())
+
+    expect(response.statusCode).toBe(404)
+    expect(body.error.code).toBe('NOT_FOUND')
+  })
+
+  it('rejects completing a session before all items are answered', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/study-sessions/session_123/complete',
+      headers: {
+        authorization: 'Bearer valid-token',
+      },
+    })
+    const body = errorResponseSchema.parse(response.json())
+
+    expect(response.statusCode).toBe(409)
+    expect(body.error.code).toBe('STUDY_SESSION_INCOMPLETE')
+  })
+
+  it('completes an answered session and returns the study result', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/study-sessions/session_123/reviews',
+      headers: {
+        authorization: 'Bearer valid-token',
+        'idempotency-key': 'idem_before_complete',
+      },
+      payload: {
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '认识',
+        reviewedAt: fixedIso,
+      },
+    })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/study-sessions/session_123/complete',
+      headers: {
+        authorization: 'Bearer valid-token',
+      },
+    })
+    const body = completeStudySessionResponseSchema.parse(response.json())
+
+    expect(response.statusCode).toBe(200)
+    expect(body.session.status).toBe('completed')
+    expect(body.result.summary).toMatchObject({
+      totalItems: 1,
+      answeredItems: 1,
+      correctCount: 1,
+      incorrectCount: 0,
+      accuracyRate: 1,
+      canCheckIn: true,
+    })
+  })
+
+  it('returns a completed session result for the current user', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/study-sessions/session_123/reviews',
+      headers: {
+        authorization: 'Bearer valid-token',
+        'idempotency-key': 'idem_before_result',
+      },
+      payload: {
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '认识',
+        reviewedAt: fixedIso,
+      },
+    })
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/study-sessions/session_123/complete',
+      headers: {
+        authorization: 'Bearer valid-token',
+      },
+    })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/study-sessions/session_123/result',
+      headers: {
+        authorization: 'Bearer valid-token',
+      },
+    })
+    const body = studySessionResultResponseSchema.parse(response.json())
+
+    expect(response.statusCode).toBe(200)
+    expect(body.result.items[0]).toMatchObject({
+      rating: 'good',
+      isCorrect: true,
+      answer: '认识',
+      nextReviewAt: '2026-06-15T00:00:00.000Z',
+    })
+  })
+
+  it('does not expose a result before the session is completed', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/study-sessions/session_123/reviews',
+      headers: {
+        authorization: 'Bearer valid-token',
+        'idempotency-key': 'idem_before_incomplete_result',
+      },
+      payload: {
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '认识',
+        reviewedAt: fixedIso,
+      },
+    })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/study-sessions/session_123/result',
+      headers: {
+        authorization: 'Bearer valid-token',
+      },
+    })
+    const body = errorResponseSchema.parse(response.json())
+
+    expect(response.statusCode).toBe(404)
+    expect(body.error.code).toBe('NOT_FOUND')
+  })
+
+  it('does not expose another user session result', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/study-sessions/session_123/result',
+      headers: {
+        authorization: 'Bearer other-token',
       },
     })
     const body = errorResponseSchema.parse(response.json())

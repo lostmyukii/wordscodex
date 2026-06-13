@@ -103,6 +103,20 @@ export function HomePage({ studyApi: client = studyApi }: HomePageProps) {
           </div>
         </div>
 
+        <div
+          className={
+            today.summary.canCheckIn ? 'checkin-card ready' : 'checkin-card'
+          }
+          aria-label="打卡状态"
+        >
+          <strong>{today.summary.canCheckIn ? '可打卡' : '待完成'}</strong>
+          <span>
+            {today.summary.canCheckIn
+              ? `今天已完成 ${today.summary.completedSessions} 个学习会话`
+              : '完成至少 1 个学习会话后开放打卡'}
+          </span>
+        </div>
+
         {today.tasks.length > 0 ? (
           <div className="task-list" aria-label="今日任务列表">
             {today.tasks.map((task) => (

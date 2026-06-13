@@ -142,6 +142,42 @@ export const submitReviewResponseSchema = z.object({
   alreadyProcessed: z.boolean(),
 })
 
+export const studySessionResultItemSchema = z.object({
+  word: wordSchema,
+  questionType: questionTypeSchema,
+  rating: reviewRatingSchema,
+  isCorrect: z.boolean(),
+  responseMs: z.number().int().positive(),
+  answer: z.string().min(1).nullable(),
+  reviewedAt: z.string().datetime(),
+  masteryState: masteryStateSchema,
+  nextReviewAt: z.string().datetime().nullable(),
+})
+
+export const studySessionResultSchema = z.object({
+  session: studySessionSchema,
+  summary: z.object({
+    totalItems: z.number().int().nonnegative(),
+    answeredItems: z.number().int().nonnegative(),
+    correctCount: z.number().int().nonnegative(),
+    incorrectCount: z.number().int().nonnegative(),
+    accuracyRate: z.number().min(0).max(1),
+    totalResponseMs: z.number().int().nonnegative(),
+    completedAt: z.string().datetime().nullable(),
+    canCheckIn: z.boolean(),
+  }),
+  items: z.array(studySessionResultItemSchema),
+})
+
+export const completeStudySessionResponseSchema = z.object({
+  session: studySessionSchema,
+  result: studySessionResultSchema,
+})
+
+export const studySessionResultResponseSchema = z.object({
+  result: studySessionResultSchema,
+})
+
 export type MasteryState = z.infer<typeof masteryStateSchema>
 export type QuestionType = z.infer<typeof questionTypeSchema>
 export type ReviewRating = z.infer<typeof reviewRatingSchema>
@@ -159,3 +195,13 @@ export type SubmitReviewRequest = z.infer<typeof submitReviewRequestSchema>
 export type ReviewProgress = z.infer<typeof reviewProgressSchema>
 export type SubmitReviewResponse = z.infer<typeof submitReviewResponseSchema>
 export type SubmitReviewResult = SubmitReviewResponse
+export type StudySessionResultItem = z.infer<
+  typeof studySessionResultItemSchema
+>
+export type StudySessionResult = z.infer<typeof studySessionResultSchema>
+export type CompleteStudySessionResponse = z.infer<
+  typeof completeStudySessionResponseSchema
+>
+export type StudySessionResultResponse = z.infer<
+  typeof studySessionResultResponseSchema
+>

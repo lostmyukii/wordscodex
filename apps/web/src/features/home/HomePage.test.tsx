@@ -79,6 +79,8 @@ function createStudyClient(overrides: Partial<StudyClient> = {}) {
     createSession: vi.fn().mockResolvedValue(sessionResponse),
     getSession: vi.fn().mockResolvedValue(sessionResponse),
     submitReview: vi.fn(),
+    completeSession: vi.fn(),
+    getSessionResult: vi.fn(),
   }
 
   return {
@@ -198,5 +200,23 @@ describe('HomePage', () => {
 
     await screen.findByText('今日新词')
     expect(getToday).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows that a completed session unlocks check-in', async () => {
+    renderHome(
+      createStudyClient({
+        getToday: vi.fn().mockResolvedValue({
+          ...today,
+          summary: {
+            ...today.summary,
+            completedSessions: 1,
+            canCheckIn: true,
+          },
+        } satisfies TodayResponse),
+      }),
+    )
+
+    expect(await screen.findByText('可打卡')).toBeInTheDocument()
+    expect(screen.getByText('今天已完成 1 个学习会话')).toBeInTheDocument()
   })
 })
