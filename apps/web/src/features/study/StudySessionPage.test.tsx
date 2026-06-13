@@ -1,6 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
-import type { StudySessionResponse, User } from '@wordscodex/contracts'
+import { fireEvent, render, screen } from '@testing-library/react'
+import type {
+  StudySessionResponse,
+  SubmitReviewResponse,
+  User,
+} from '@wordscodex/contracts'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth/auth-store'
@@ -61,11 +65,29 @@ const sessionResponse: StudySessionResponse = {
   },
 }
 
+const submitReviewResponse: SubmitReviewResponse = {
+  progress: {
+    masteryState: 'learning',
+    repetitions: 1,
+    consecutiveCorrect: 1,
+    correctCount: 1,
+    incorrectCount: 0,
+    easeFactor: 2.3,
+    intervalDays: 2,
+    lastReviewedAt: fixedIso,
+    nextReviewAt: '2026-06-15T00:00:00.000Z',
+    averageResponseMs: 4200,
+    lastErrorType: null,
+  },
+  alreadyProcessed: false,
+}
+
 function createStudyClient(overrides: Partial<StudyClient> = {}) {
   const mocks = {
     getToday: vi.fn(),
     createSession: vi.fn(),
     getSession: vi.fn().mockResolvedValue(sessionResponse),
+    submitReview: vi.fn().mockResolvedValue(submitReviewResponse),
   }
 
   return {
@@ -126,13 +148,38 @@ describe('StudySessionPage', () => {
     expect(
       await screen.findByRole('heading', { name: '学习会话' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('ability')).toBeInTheDocument()
     expect(screen.getByText('/əˈbɪləti/')).toBeInTheDocument()
+    expect(mocks.getSession).toHaveBeenCalledWith('session_123', 'access-token')
+    expect(
+      screen.getByRole('heading', { name: 'ability 的中文意思是？' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '不认识' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '认识' })).toBeInTheDocument()
+  })
+
+  it('submits an active recall answer with an idempotency key', async () => {
+    const { mocks } = renderStudySession()
+
+    fireEvent.click(await screen.findByRole('button', { name: '认识' }))
+
+    expect(await screen.findByText('作答已记录')).toBeInTheDocument()
+    expect(screen.getByText('下次复习：2026-06-15')).toBeInTheDocument()
     expect(screen.getByText('能力；才能')).toBeInTheDocument()
     expect(
       screen.getByText('Reading improves your ability to learn.'),
     ).toBeInTheDocument()
-    expect(mocks.getSession).toHaveBeenCalledWith('session_123', 'access-token')
+    expect(mocks.submitReview).toHaveBeenCalledWith(
+      'session_123',
+      expect.objectContaining({
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        answer: '认识',
+      }),
+      expect.stringMatching(/^review_session_123_word_ability_/),
+      'access-token',
+    )
   })
 
   it('shows a recovery link when the session cannot be loaded', async () => {

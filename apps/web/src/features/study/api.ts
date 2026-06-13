@@ -1,10 +1,14 @@
 import {
   createStudySessionRequestSchema,
   errorResponseSchema,
+  submitReviewRequestSchema,
+  submitReviewResponseSchema,
   studySessionResponseSchema,
   todayResponseSchema,
   type CreateStudySessionRequest,
   type StudySessionResponse,
+  type SubmitReviewRequest,
+  type SubmitReviewResponse,
   type TodayResponse,
 } from '@wordscodex/contracts'
 
@@ -56,6 +60,12 @@ export type StudyClient = {
     sessionId: string,
     accessToken: string,
   ): Promise<StudySessionResponse>
+  submitReview(
+    sessionId: string,
+    input: SubmitReviewRequest,
+    idempotencyKey: string,
+    accessToken: string,
+  ): Promise<SubmitReviewResponse>
 }
 
 export const studyApi: StudyClient = {
@@ -90,6 +100,22 @@ export const studyApi: StudyClient = {
       },
       accessToken,
       (value) => studySessionResponseSchema.parse(value),
+    )
+  },
+  submitReview(sessionId, input, idempotencyKey, accessToken) {
+    const payload = submitReviewRequestSchema.parse(input)
+
+    return request(
+      `/study-sessions/${encodeURIComponent(sessionId)}/reviews`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: {
+          'idempotency-key': idempotencyKey,
+        },
+      },
+      accessToken,
+      (value) => submitReviewResponseSchema.parse(value),
     )
   },
 }

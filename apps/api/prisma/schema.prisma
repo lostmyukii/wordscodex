@@ -68,6 +68,13 @@ enum QuestionType {
   listening
 }
 
+enum ReviewRating {
+  again
+  hard
+  good
+  easy
+}
+
 model SystemMetadata {
   key       String   @id
   value     String
@@ -86,6 +93,7 @@ model User {
   studyPlans    StudyPlan[]
   wordProgress  UserWordProgress[]
   studySessions StudySession[]
+  reviewLogs    ReviewLog[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 }
@@ -163,6 +171,7 @@ model VocabularyWord {
   vocabularyBook       VocabularyBook     @relation(fields: [vocabularyBookId], references: [id], onDelete: Cascade)
   progress             UserWordProgress[]
   sessionItems         StudySessionItem[]
+  reviewLogs           ReviewLog[]
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
@@ -203,6 +212,7 @@ model StudySession {
   completedAt DateTime?
   user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   items       StudySessionItem[]
+  reviewLogs  ReviewLog[]
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
@@ -223,4 +233,26 @@ model StudySessionItem {
 
   @@unique([sessionId, position])
   @@index([wordId])
+}
+
+model ReviewLog {
+  id             String         @id @default(cuid())
+  idempotencyKey String         @unique
+  sessionId      String
+  userId         String
+  wordId         String
+  questionType   QuestionType
+  rating         ReviewRating
+  isCorrect      Boolean
+  responseMs     Int
+  answer         String?
+  reviewedAt     DateTime
+  session        StudySession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word           VocabularyWord @relation(fields: [wordId], references: [id], onDelete: Restrict)
+  createdAt      DateTime       @default(now())
+
+  @@index([sessionId])
+  @@index([userId, reviewedAt])
+  @@index([wordId, reviewedAt])
 }

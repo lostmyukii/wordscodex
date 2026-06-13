@@ -1,9 +1,16 @@
 import type {
   QuestionType,
+  ReviewProgress,
+  SubmitReviewRequest,
+  SubmitReviewResult,
   StudySession,
   StudySessionMode,
   Word,
 } from '@wordscodex/contracts'
+import {
+  calculateSrsReview,
+  type SrsProgressSnapshot,
+} from '@wordscodex/domain'
 import type { PrismaClient } from '../../../generated/prisma/client.js'
 import {
   EmptyStudySessionError,
@@ -56,6 +63,20 @@ type StudyPlanRecord = {
   startedAt: Date
   createdAt: Date
   updatedAt: Date
+}
+
+type ProgressRecord = {
+  masteryState: SrsProgressSnapshot['masteryState']
+  repetitions: number
+  consecutiveCorrect: number
+  correctCount: number
+  incorrectCount: number
+  easeFactor: number
+  intervalDays: number
+  lastReviewedAt: Date | null
+  nextReviewAt: Date | null
+  averageResponseMs: number | null
+  lastErrorType: QuestionType | null
 }
 
 export class PrismaStudySessionRepository {
@@ -211,6 +232,121 @@ export class PrismaStudySessionRepository {
     return session ? toStudySession(session) : null
   }
 
+  async submitReview(input: {
+    sessionId: string
+    userId: string
+    idempotencyKey: string
+    review: SubmitReviewRequest
+    now: Date
+  }): Promise<SubmitReviewResult | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const existingReview = await tx.reviewLog.findUnique({
+        where: {
+          idempotencyKey: input.idempotencyKey,
+        },
+      })
+
+      if (existingReview) {
+        if (
+          existingReview.sessionId !== input.sessionId ||
+          existingReview.userId !== input.userId ||
+          existingReview.wordId !== input.review.wordId
+        ) {
+          return null
+        }
+
+        const existingProgress = await tx.userWordProgress.findUnique({
+          where: {
+            userId_wordId: {
+              userId: input.userId,
+              wordId: input.review.wordId,
+            },
+          },
+        })
+
+        return existingProgress
+          ? {
+              progress: toReviewProgress(existingProgress),
+              alreadyProcessed: true,
+            }
+          : null
+      }
+
+      const session = await tx.studySession.findFirst({
+        where: {
+          id: input.sessionId,
+          userId: input.userId,
+          status: 'active',
+        },
+        include: {
+          items: {
+            where: {
+              wordId: input.review.wordId,
+            },
+            take: 1,
+          },
+        },
+      })
+
+      if (!session || session.items.length === 0) return null
+
+      const previousProgress = await tx.userWordProgress.findUnique({
+        where: {
+          userId_wordId: {
+            userId: input.userId,
+            wordId: input.review.wordId,
+          },
+        },
+      })
+      const reviewedAt = new Date(input.review.reviewedAt)
+      const nextProgress = calculateSrsReview({
+        previous: previousProgress
+          ? toSrsProgressSnapshot(previousProgress)
+          : null,
+        rating: input.review.rating,
+        isCorrect: input.review.isCorrect,
+        responseMs: input.review.responseMs,
+        questionType: input.review.questionType,
+        reviewedAt,
+      })
+
+      await tx.reviewLog.create({
+        data: {
+          idempotencyKey: input.idempotencyKey,
+          sessionId: input.sessionId,
+          userId: input.userId,
+          wordId: input.review.wordId,
+          questionType: input.review.questionType,
+          rating: input.review.rating,
+          isCorrect: input.review.isCorrect,
+          responseMs: input.review.responseMs,
+          answer: input.review.answer,
+          reviewedAt,
+        },
+      })
+
+      const updatedProgress = await tx.userWordProgress.upsert({
+        where: {
+          userId_wordId: {
+            userId: input.userId,
+            wordId: input.review.wordId,
+          },
+        },
+        create: {
+          userId: input.userId,
+          wordId: input.review.wordId,
+          ...toProgressWriteData(nextProgress),
+        },
+        update: toProgressWriteData(nextProgress),
+      })
+
+      return {
+        progress: toReviewProgress(updatedProgress),
+        alreadyProcessed: false,
+      }
+    })
+  }
+
   private findActivePlan(userId: string) {
     return this.prisma.studyPlan.findFirst({
       where: {
@@ -221,6 +357,58 @@ export class PrismaStudySessionRepository {
         startedAt: 'desc',
       },
     })
+  }
+}
+
+function toSrsProgressSnapshot(record: ProgressRecord): SrsProgressSnapshot {
+  return {
+    masteryState: record.masteryState,
+    repetitions: record.repetitions,
+    consecutiveCorrect: record.consecutiveCorrect,
+    correctCount: record.correctCount,
+    incorrectCount: record.incorrectCount,
+    easeFactor: record.easeFactor,
+    intervalDays: record.intervalDays,
+    lastReviewedAt: record.lastReviewedAt?.toISOString() ?? null,
+    nextReviewAt: record.nextReviewAt?.toISOString() ?? null,
+    averageResponseMs: record.averageResponseMs,
+    lastErrorType: record.lastErrorType,
+  }
+}
+
+function toReviewProgress(record: ProgressRecord): ReviewProgress {
+  return {
+    masteryState: record.masteryState,
+    repetitions: record.repetitions,
+    consecutiveCorrect: record.consecutiveCorrect,
+    correctCount: record.correctCount,
+    incorrectCount: record.incorrectCount,
+    easeFactor: record.easeFactor,
+    intervalDays: record.intervalDays,
+    lastReviewedAt: record.lastReviewedAt?.toISOString() ?? null,
+    nextReviewAt: record.nextReviewAt?.toISOString() ?? null,
+    averageResponseMs: record.averageResponseMs,
+    lastErrorType: record.lastErrorType,
+  }
+}
+
+function toProgressWriteData(progress: SrsProgressSnapshot) {
+  return {
+    masteryState: progress.masteryState,
+    repetitions: progress.repetitions,
+    consecutiveCorrect: progress.consecutiveCorrect,
+    correctCount: progress.correctCount,
+    incorrectCount: progress.incorrectCount,
+    easeFactor: progress.easeFactor,
+    intervalDays: progress.intervalDays,
+    lastReviewedAt: progress.lastReviewedAt
+      ? new Date(progress.lastReviewedAt)
+      : null,
+    nextReviewAt: progress.nextReviewAt
+      ? new Date(progress.nextReviewAt)
+      : null,
+    averageResponseMs: progress.averageResponseMs,
+    lastErrorType: progress.lastErrorType,
   }
 }
 

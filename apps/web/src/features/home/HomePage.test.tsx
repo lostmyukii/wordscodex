@@ -78,6 +78,7 @@ function createStudyClient(overrides: Partial<StudyClient> = {}) {
     getToday: vi.fn().mockResolvedValue(today),
     createSession: vi.fn().mockResolvedValue(sessionResponse),
     getSession: vi.fn().mockResolvedValue(sessionResponse),
+    submitReview: vi.fn(),
   }
 
   return {

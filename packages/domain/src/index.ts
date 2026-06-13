@@ -6,3 +6,11 @@ export {
   type TodayTask,
   type TodayTaskType,
 } from './today/tasks.js'
+export {
+  calculateSrsReview,
+  type CalculateSrsReviewInput,
+  type MasteryState,
+  type QuestionType,
+  type ReviewRating,
+  type SrsProgressSnapshot,
+} from './srs/schedule.js'

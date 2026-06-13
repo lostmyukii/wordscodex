@@ -48,6 +48,12 @@ test('selects a vocabulary book on mobile', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/study\/session\/.+/)
   await expect(page.getByRole('heading', { name: '学习会话' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'ability' })).toBeVisible()
-  await expect(page.getByText('能力；才能')).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'ability 的中文意思是？' }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: '认识', exact: true }).click()
+
+  await expect(page.getByText('作答已记录')).toBeVisible()
+  await expect(page.getByText('下次复习：2026-06-15')).toBeVisible()
 })

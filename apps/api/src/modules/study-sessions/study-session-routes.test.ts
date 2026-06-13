@@ -1,8 +1,11 @@
 import {
   errorResponseSchema,
+  submitReviewResponseSchema,
   studySessionResponseSchema,
   todayResponseSchema,
   type StudyPlan,
+  type SubmitReviewRequest,
+  type SubmitReviewResult,
   type StudySession,
   type User,
 } from '@wordscodex/contracts'
@@ -89,6 +92,14 @@ const session: StudySession = {
 class MemoryStudySessionRepository {
   activePlan: StudyPlan | null = plan
   sessions = new Map<string, StudySession>([[session.id, session]])
+  reviewCalls: Array<{
+    sessionId: string
+    userId: string
+    idempotencyKey: string
+    input: SubmitReviewRequest
+    now: Date
+  }> = []
+  processedKeys = new Map<string, SubmitReviewResult>()
 
   getTodayOverview(userId: string) {
     if (userId !== user.id || !this.activePlan) {
@@ -124,6 +135,59 @@ class MemoryStudySessionRepository {
     const candidate = this.sessions.get(sessionId)
     if (!candidate || candidate.userId !== userId) return Promise.resolve(null)
     return Promise.resolve(candidate)
+  }
+
+  submitReview(input: {
+    sessionId: string
+    userId: string
+    idempotencyKey: string
+    review: SubmitReviewRequest
+    now: Date
+  }) {
+    const candidate = this.sessions.get(input.sessionId)
+    if (!candidate || candidate.userId !== input.userId) {
+      return Promise.resolve(null)
+    }
+
+    if (!candidate.items.some((item) => item.word.id === input.review.wordId)) {
+      return Promise.resolve(null)
+    }
+
+    const existing = this.processedKeys.get(input.idempotencyKey)
+    if (existing) {
+      return Promise.resolve({
+        ...existing,
+        alreadyProcessed: true,
+      })
+    }
+
+    this.reviewCalls.push({
+      sessionId: input.sessionId,
+      userId: input.userId,
+      idempotencyKey: input.idempotencyKey,
+      input: input.review,
+      now: input.now,
+    })
+
+    const result = {
+      progress: {
+        masteryState: 'learning' as const,
+        repetitions: 1,
+        consecutiveCorrect: 1,
+        correctCount: 1,
+        incorrectCount: 0,
+        easeFactor: 2.3,
+        intervalDays: 2,
+        lastReviewedAt: input.review.reviewedAt,
+        nextReviewAt: '2026-06-15T00:00:00.000Z',
+        averageResponseMs: input.review.responseMs,
+        lastErrorType: null,
+      },
+      alreadyProcessed: false,
+    }
+    this.processedKeys.set(input.idempotencyKey, result)
+
+    return Promise.resolve(result)
   }
 }
 
@@ -238,6 +302,116 @@ describe('study session routes', () => {
       url: '/api/v1/study-sessions/session_123',
       headers: {
         authorization: 'Bearer other-token',
+      },
+    })
+    const body = errorResponseSchema.parse(response.json())
+
+    expect(response.statusCode).toBe(404)
+    expect(body.error.code).toBe('NOT_FOUND')
+  })
+
+  it('submits an active recall review with an idempotency key', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/study-sessions/session_123/reviews',
+      headers: {
+        authorization: 'Bearer valid-token',
+        'idempotency-key': 'idem_123',
+      },
+      payload: {
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '能力；才能',
+        reviewedAt: fixedIso,
+      },
+    })
+    const body = submitReviewResponseSchema.parse(response.json())
+
+    expect(response.statusCode).toBe(201)
+    expect(repository.reviewCalls).toHaveLength(1)
+    expect(repository.reviewCalls[0]).toMatchObject({
+      sessionId: 'session_123',
+      userId: user.id,
+      idempotencyKey: 'idem_123',
+    })
+    expect(body.progress).toMatchObject({
+      masteryState: 'learning',
+      repetitions: 1,
+      nextReviewAt: '2026-06-15T00:00:00.000Z',
+    })
+  })
+
+  it('does not process a duplicate idempotency key twice', async () => {
+    const request = {
+      method: 'POST',
+      url: '/api/v1/study-sessions/session_123/reviews',
+      headers: {
+        authorization: 'Bearer valid-token',
+        'idempotency-key': 'idem_repeat',
+      },
+      payload: {
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '能力；才能',
+        reviewedAt: fixedIso,
+      },
+    } as const
+
+    const first = await app.inject(request)
+    const second = await app.inject(request)
+    const secondBody = submitReviewResponseSchema.parse(second.json())
+
+    expect(first.statusCode).toBe(201)
+    expect(second.statusCode).toBe(200)
+    expect(repository.reviewCalls).toHaveLength(1)
+    expect(secondBody.alreadyProcessed).toBe(true)
+  })
+
+  it('rejects a review without idempotency key', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/study-sessions/session_123/reviews',
+      headers: {
+        authorization: 'Bearer valid-token',
+      },
+      payload: {
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '能力；才能',
+        reviewedAt: fixedIso,
+      },
+    })
+    const body = errorResponseSchema.parse(response.json())
+
+    expect(response.statusCode).toBe(400)
+    expect(body.error.code).toBe('IDEMPOTENCY_KEY_REQUIRED')
+  })
+
+  it('does not allow submitting another user session review', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/study-sessions/session_123/reviews',
+      headers: {
+        authorization: 'Bearer other-token',
+        'idempotency-key': 'idem_other',
+      },
+      payload: {
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '能力；才能',
+        reviewedAt: fixedIso,
       },
     })
     const body = errorResponseSchema.parse(response.json())

@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { errorResponseSchema } from './auth.js'
 import {
   createStudySessionRequestSchema,
+  reviewProgressSchema,
+  submitReviewRequestSchema,
+  submitReviewResponseSchema,
   studySessionResponseSchema,
   todayResponseSchema,
   wordSchema,
@@ -117,6 +120,47 @@ describe('study session contracts', () => {
     expect(body.session.items[0]?.word.lemma).toBe('ability')
   })
 
+  it('accepts a submit review request and normalized progress response', () => {
+    expect(
+      submitReviewRequestSchema.parse({
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '能力；才能',
+        reviewedAt: fixedIso,
+      }),
+    ).toMatchObject({
+      rating: 'good',
+      responseMs: 4200,
+    })
+
+    const progress = reviewProgressSchema.parse({
+      masteryState: 'learning',
+      repetitions: 1,
+      consecutiveCorrect: 1,
+      correctCount: 1,
+      incorrectCount: 0,
+      easeFactor: 2.3,
+      intervalDays: 2,
+      lastReviewedAt: fixedIso,
+      nextReviewAt: '2026-06-15T00:00:00.000Z',
+      averageResponseMs: 4200,
+      lastErrorType: null,
+    })
+
+    expect(
+      submitReviewResponseSchema.parse({
+        progress,
+        alreadyProcessed: false,
+      }),
+    ).toEqual({
+      progress,
+      alreadyProcessed: false,
+    })
+  })
+
   it('accepts stable study session error codes', () => {
     expect(
       errorResponseSchema.parse({
@@ -137,5 +181,15 @@ describe('study session contracts', () => {
         },
       }).error.code,
     ).toBe('EMPTY_STUDY_SESSION')
+
+    expect(
+      errorResponseSchema.parse({
+        error: {
+          code: 'IDEMPOTENCY_KEY_REQUIRED',
+          message: '学习记录缺少幂等键，请重试。',
+          requestId: 'req_123',
+        },
+      }).error.code,
+    ).toBe('IDEMPOTENCY_KEY_REQUIRED')
   })
 })

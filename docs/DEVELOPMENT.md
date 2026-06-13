@@ -528,10 +528,11 @@ POST   /api/v1/study-sessions/:sessionId/complete
 GET    /api/v1/study-sessions/:sessionId/result
 ```
 
-当前 Stage 1 已落地 `GET /api/v1/today`、`POST /api/v1/study-sessions` 和
-`GET /api/v1/study-sessions/:sessionId` 的会话骨架：服务端根据 active 学习计划返回今日任务，
-并固化首个新词学习会话的题目顺序。`ReviewLog` 写入、SRS 调度更新、完成会话和结果页属于下一步
-“主动回忆与学习记录”范围，不能把当前会话展示页视为已经完成主动回忆。
+当前 Stage 1 已落地 `GET /api/v1/today`、`POST /api/v1/study-sessions`、
+`GET /api/v1/study-sessions/:sessionId` 和
+`POST /api/v1/study-sessions/:sessionId/reviews`：服务端根据 active 学习计划返回今日任务，
+固化首个新词学习会话的题目顺序，并通过 `ReviewLog` 与 `UserWordProgress` 完成一次主动回忆提交。
+完成会话、结果页和打卡条件收口属于下一步范围，不能把“单题作答成功”视为完整学习会话已完成。
 
 创建会话请求：
 

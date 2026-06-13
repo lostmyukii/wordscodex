@@ -1,9 +1,13 @@
 import {
   createStudySessionRequestSchema,
+  submitReviewRequestSchema,
+  submitReviewResponseSchema,
   studySessionResponseSchema,
   todayResponseSchema,
   type StudyPlan,
   type StudySession,
+  type SubmitReviewRequest,
+  type SubmitReviewResult,
 } from '@wordscodex/contracts'
 import { buildTodayTasks } from '@wordscodex/domain'
 import type { FastifyPluginCallback, FastifyRequest } from 'fastify'
@@ -31,6 +35,13 @@ export type StudySessionRepository = {
     now: Date
   }): Promise<StudySession>
   getSession(sessionId: string, userId: string): Promise<StudySession | null>
+  submitReview(input: {
+    sessionId: string
+    userId: string
+    idempotencyKey: string
+    review: SubmitReviewRequest
+    now: Date
+  }): Promise<SubmitReviewResult | null>
 }
 
 type StudySessionRoutesOptions = {
@@ -141,6 +152,28 @@ export const studySessionRoutes: FastifyPluginCallback<
     return studySessionResponseSchema.parse({ session })
   })
 
+  app.post('/study-sessions/:sessionId/reviews', async (request, reply) => {
+    const user = await requireCurrentUser(request, options.authService)
+    const sessionId = getSessionId(request.params)
+    const idempotencyKey = getIdempotencyKey(request)
+    const review = parseReviewBody(request.body)
+    const result = await options.studySessionRepository.submitReview({
+      sessionId,
+      userId: user.id,
+      idempotencyKey,
+      review,
+      now: options.clock(),
+    })
+
+    if (!result) {
+      throw new HttpError(404, 'NOT_FOUND', '学习会话不存在。')
+    }
+
+    return reply
+      .code(result.alreadyProcessed ? 200 : 201)
+      .send(submitReviewResponseSchema.parse(result))
+  })
+
   done()
 }
 
@@ -159,6 +192,21 @@ async function requireCurrentUser(
 function parseCreateBody(body: unknown) {
   try {
     return createStudySessionRequestSchema.parse(body)
+  } catch (error) {
+    if (error instanceof ZodError) {
+      throw new HttpError(
+        400,
+        'VALIDATION_FAILED',
+        '提交内容不完整，请检查后重试。',
+      )
+    }
+    throw error
+  }
+}
+
+function parseReviewBody(body: unknown) {
+  try {
+    return submitReviewRequestSchema.parse(body)
   } catch (error) {
     if (error instanceof ZodError) {
       throw new HttpError(
@@ -194,6 +242,21 @@ function extractBearerToken(request: FastifyRequest) {
   if (!authorization?.startsWith('Bearer ')) return undefined
 
   return authorization.slice('Bearer '.length).trim() || undefined
+}
+
+function getIdempotencyKey(request: FastifyRequest) {
+  const value = request.headers['idempotency-key']
+  const idempotencyKey = Array.isArray(value) ? value[0] : value
+
+  if (typeof idempotencyKey === 'string' && idempotencyKey.trim().length > 0) {
+    return idempotencyKey.trim()
+  }
+
+  throw new HttpError(
+    400,
+    'IDEMPOTENCY_KEY_REQUIRED',
+    '学习记录缺少幂等键，请重试。',
+  )
 }
 
 function buildSessionRecommendation(newWordsDue: number, reviewsDue: number) {
