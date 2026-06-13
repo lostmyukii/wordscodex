@@ -25,6 +25,11 @@ import {
   studyPlanRoutes,
   type StudyPlanRepository,
 } from './modules/study-plans/study-plan-routes.js'
+import { PrismaStudySessionRepository } from './modules/study-sessions/study-session-repository.js'
+import {
+  studySessionRoutes,
+  type StudySessionRepository,
+} from './modules/study-sessions/study-session-routes.js'
 import { PrismaVocabularyRepository } from './modules/vocabulary/vocabulary-repository.js'
 import {
   vocabularyRoutes,
@@ -51,6 +56,7 @@ export type BuildAppOptions = {
   redisClient?: RedisClientType
   vocabularyRepository?: VocabularyRepository
   studyPlanRepository?: StudyPlanRepository
+  studySessionRepository?: StudySessionRepository
   clock?: () => Date
 }
 
@@ -69,6 +75,9 @@ export function buildApp(options: BuildAppOptions = {}) {
   const studyPlanRepository =
     options.studyPlanRepository ??
     (prismaClient ? new PrismaStudyPlanRepository(prismaClient) : undefined)
+  const studySessionRepository =
+    options.studySessionRepository ??
+    (prismaClient ? new PrismaStudySessionRepository(prismaClient) : undefined)
   const clock = options.clock ?? (() => new Date())
 
   void app.register(cors, {
@@ -98,6 +107,14 @@ export function buildApp(options: BuildAppOptions = {}) {
       prefix: '/api/v1',
       authService,
       studyPlanRepository,
+      clock,
+    })
+  }
+  if (studySessionRepository) {
+    void app.register(studySessionRoutes, {
+      prefix: '/api/v1',
+      authService,
+      studySessionRepository,
       clock,
     })
   }

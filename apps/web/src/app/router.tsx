@@ -4,6 +4,7 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { HomePage } from '../features/home/HomePage'
 import { OnboardingEntryPage } from '../features/onboarding/OnboardingEntryPage'
+import { StudySessionPage } from '../features/study/StudySessionPage'
 import { VocabularyBookDetailPage } from '../features/vocabulary/VocabularyBookDetailPage'
 import { VocabularyBooksPage } from '../features/vocabulary/VocabularyBooksPage'
 
@@ -27,6 +28,10 @@ export function createAppRouter() {
         {
           path: '/home',
           element: <HomePage />,
+        },
+        {
+          path: '/study/session/:sessionId',
+          element: <StudySessionPage />,
         },
         {
           path: '/books',

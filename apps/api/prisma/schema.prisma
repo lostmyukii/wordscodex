@@ -39,6 +39,35 @@ enum StudyPlanStatus {
   completed
 }
 
+enum MasteryState {
+  new
+  learning
+  fuzzy
+  mistake
+  mastered
+  lapsed
+}
+
+enum StudySessionMode {
+  new_words
+  review
+  mistake_drill
+  mixed
+}
+
+enum StudySessionStatus {
+  active
+  completed
+  abandoned
+}
+
+enum QuestionType {
+  word_to_meaning
+  meaning_to_word
+  spelling
+  listening
+}
+
 model SystemMetadata {
   key       String   @id
   value     String
@@ -47,16 +76,18 @@ model SystemMetadata {
 }
 
 model User {
-  id          String        @id @default(cuid())
-  email       String?       @unique
-  displayName String        @default("学习者")
-  role        UserRole      @default(learner)
-  accountType AccountType   @default(guest)
-  timezone    String        @default("Asia/Shanghai")
-  sessions    AuthSession[]
-  studyPlans  StudyPlan[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String             @id @default(cuid())
+  email         String?            @unique
+  displayName   String             @default("学习者")
+  role          UserRole           @default(learner)
+  accountType   AccountType        @default(guest)
+  timezone      String             @default("Asia/Shanghai")
+  sessions      AuthSession[]
+  studyPlans    StudyPlan[]
+  wordProgress  UserWordProgress[]
+  studySessions StudySession[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 }
 
 model AuthSession {
@@ -83,6 +114,7 @@ model VocabularyBook {
   version     Int                @default(1)
   publishedAt DateTime?
   studyPlans  StudyPlan[]
+  words       VocabularyWord[]
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
@@ -109,4 +141,86 @@ model StudyPlan {
   @@index([userId])
   @@index([vocabularyBookId])
   @@index([status])
+}
+
+model VocabularyWord {
+  id                   String             @id @default(cuid())
+  vocabularyBookId     String
+  lemma                String
+  partOfSpeech         String
+  definitionZh         String
+  definitionEn         String?
+  phoneticUk           String?
+  phoneticUs           String?
+  audioUkUrl           String?
+  audioUsUrl           String?
+  imageUrl             String?
+  exampleSentence      String?
+  exampleTranslationZh String?
+  exampleSource        String?
+  position             Int
+  contentVersion       Int                @default(1)
+  vocabularyBook       VocabularyBook     @relation(fields: [vocabularyBookId], references: [id], onDelete: Cascade)
+  progress             UserWordProgress[]
+  sessionItems         StudySessionItem[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@unique([vocabularyBookId, lemma])
+  @@unique([vocabularyBookId, position])
+  @@index([vocabularyBookId])
+}
+
+model UserWordProgress {
+  userId             String
+  wordId             String
+  masteryState       MasteryState   @default(new)
+  repetitions        Int            @default(0)
+  consecutiveCorrect Int            @default(0)
+  correctCount       Int            @default(0)
+  incorrectCount     Int            @default(0)
+  easeFactor         Float          @default(2.3)
+  intervalDays       Int            @default(0)
+  lastReviewedAt     DateTime?
+  nextReviewAt       DateTime?
+  averageResponseMs  Int?
+  lastErrorType      QuestionType?
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word               VocabularyWord @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  updatedAt          DateTime       @updatedAt
+
+  @@id([userId, wordId])
+  @@index([masteryState])
+  @@index([nextReviewAt])
+}
+
+model StudySession {
+  id          String             @id @default(cuid())
+  userId      String
+  mode        StudySessionMode
+  status      StudySessionStatus @default(active)
+  startedAt   DateTime           @default(now())
+  completedAt DateTime?
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       StudySessionItem[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model StudySessionItem {
+  id           String         @id @default(cuid())
+  sessionId    String
+  wordId       String
+  position     Int
+  questionType QuestionType
+  session      StudySession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  word         VocabularyWord @relation(fields: [wordId], references: [id], onDelete: Restrict)
+  createdAt    DateTime       @default(now())
+
+  @@unique([sessionId, position])
+  @@index([wordId])
 }

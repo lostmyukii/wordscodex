@@ -493,6 +493,157 @@ input:focus-visible {
   text-decoration: underline;
 }
 
+.home-shell,
+.study-shell {
+  min-height: 100vh;
+  padding: clamp(16px, 4vw, 48px);
+  background:
+    radial-gradient(circle at 16% 16%, rgb(214 230 196 / 70%), transparent 32%),
+    radial-gradient(circle at 84% 86%, rgb(244 222 168 / 46%), transparent 30%),
+    #f6f8f3;
+}
+
+.today-card,
+.study-card {
+  display: grid;
+  gap: 20px;
+  width: min(100%, 720px);
+  margin: 0 auto;
+  border: 1px solid #dce3d4;
+  border-radius: 28px;
+  padding: clamp(28px, 7vw, 56px);
+  background: rgb(255 255 255 / 95%);
+  box-shadow: 0 24px 72px rgb(46 68 37 / 10%);
+}
+
+.today-card h1,
+.study-card h1 {
+  font-size: clamp(36px, 9vw, 64px);
+}
+
+.today-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.today-summary-grid div,
+.task-card,
+.word-card {
+  border: 1px solid #dce3d4;
+  border-radius: 20px;
+  background: #f8fbf4;
+}
+
+.today-summary-grid div {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+
+.today-summary-grid span,
+.session-progress {
+  color: #52743d;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.today-summary-grid strong {
+  color: #172032;
+  font-size: 28px;
+}
+
+.task-list {
+  display: grid;
+  gap: 14px;
+}
+
+.task-card {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px;
+}
+
+.task-card h2,
+.word-card h2 {
+  margin: 0;
+  color: #172032;
+}
+
+.task-card h2 {
+  font-size: 22px;
+}
+
+.task-card p,
+.empty-note,
+.meaning-list p,
+.example-card p,
+.example-card footer {
+  margin: 0;
+  color: #586174;
+  line-height: 1.7;
+}
+
+.task-card > strong {
+  flex: 0 0 auto;
+  color: #335e2b;
+  font-size: 22px;
+}
+
+.empty-note {
+  border: 1px solid #dce3d4;
+  border-radius: 20px;
+  padding: 18px;
+  background: #f8fbf4;
+}
+
+.word-card {
+  display: grid;
+  gap: 18px;
+  padding: clamp(20px, 6vw, 32px);
+}
+
+.word-card h2 {
+  font-size: clamp(44px, 14vw, 72px);
+  line-height: 1;
+}
+
+.phonetic-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.phonetic-row span {
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #335e2b;
+  background: #eef3e8;
+  font-weight: 800;
+}
+
+.meaning-list {
+  display: grid;
+  gap: 8px;
+}
+
+.meaning-list strong {
+  color: #172032;
+}
+
+.example-card {
+  margin: 0;
+  border-left: 4px solid #d7a937;
+  padding: 12px 0 12px 16px;
+}
+
+.example-card footer {
+  margin-top: 6px;
+}
+
 @media (max-width: 480px) {
   .app-shell {
     padding: 16px;
@@ -513,6 +664,15 @@ input:focus-visible {
 
   .book-state-card .secondary-action {
     width: 100%;
+  }
+
+  .today-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .task-card {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

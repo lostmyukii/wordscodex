@@ -51,6 +51,8 @@ export const apiErrorCodeSchema = z.enum([
   ...authErrorCodes,
   'NOT_FOUND',
   'ACTIVE_STUDY_PLAN_EXISTS',
+  'NO_ACTIVE_STUDY_PLAN',
+  'EMPTY_STUDY_SESSION',
 ])
 
 export const errorResponseSchema = z.object({
