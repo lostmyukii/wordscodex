@@ -11,6 +11,10 @@ export function App() {
           开始学习
         </a>
       </section>
+      <nav className="legal-link-row" aria-label="合规链接">
+        <a href="/privacy">隐私政策</a>
+        <a href="/terms">用户协议</a>
+      </nav>
     </main>
   )
 }

@@ -18,6 +18,16 @@ import {
 } from './modules/auth/auth-service.js'
 import { PrismaAuthRepository } from './modules/auth/auth-repository.js'
 import { authRoutes } from './modules/auth/auth-routes.js'
+import { PrismaAnalyticsRepository } from './modules/analytics/analytics-repository.js'
+import {
+  analyticsRoutes,
+  type AnalyticsRepository,
+} from './modules/analytics/analytics-routes.js'
+import { PrismaEngagementRepository } from './modules/engagement/engagement-repository.js'
+import {
+  engagementRoutes,
+  type EngagementRepository,
+} from './modules/engagement/engagement-routes.js'
 import { PrismaMistakeRepository } from './modules/mistakes/mistake-repository.js'
 import {
   mistakeRoutes,
@@ -42,6 +52,7 @@ import {
 } from './modules/vocabulary/vocabulary-routes.js'
 import { healthRoutes } from './routes/health.js'
 import { HttpError } from './shared/http-error.js'
+import { loggerRedactionPaths } from './shared/security.js'
 
 type NodeEnv = 'development' | 'test' | 'production'
 
@@ -63,14 +74,24 @@ export type BuildAppOptions = {
   studyPlanRepository?: StudyPlanRepository
   studySessionRepository?: StudySessionRepository
   mistakeRepository?: MistakeRepository
+  engagementRepository?: EngagementRepository
+  analyticsRepository?: AnalyticsRepository
   clock?: () => Date
 }
 
 export function buildApp(options: BuildAppOptions = {}) {
-  const app = Fastify({
-    logger: false,
-  })
   const config = resolveConfig(options.config)
+  const app = Fastify({
+    logger:
+      config.nodeEnv === 'test'
+        ? false
+        : {
+            redact: {
+              paths: [...loggerRedactionPaths],
+              censor: '[REDACTED]',
+            },
+          },
+  })
   const { authService, prismaClient, redisClient } = resolveAuthDependencies(
     options,
     config,
@@ -87,6 +108,12 @@ export function buildApp(options: BuildAppOptions = {}) {
   const mistakeRepository =
     options.mistakeRepository ??
     (prismaClient ? new PrismaMistakeRepository(prismaClient) : undefined)
+  const engagementRepository =
+    options.engagementRepository ??
+    (prismaClient ? new PrismaEngagementRepository(prismaClient) : undefined)
+  const analyticsRepository =
+    options.analyticsRepository ??
+    (prismaClient ? new PrismaAnalyticsRepository(prismaClient) : undefined)
   const clock = options.clock ?? (() => new Date())
 
   void app.register(cors, {
@@ -132,6 +159,22 @@ export function buildApp(options: BuildAppOptions = {}) {
       prefix: '/api/v1',
       authService,
       mistakeRepository,
+      clock,
+    })
+  }
+  if (engagementRepository) {
+    void app.register(engagementRoutes, {
+      prefix: '/api/v1',
+      authService,
+      engagementRepository,
+      clock,
+    })
+  }
+  if (analyticsRepository) {
+    void app.register(analyticsRoutes, {
+      prefix: '/api/v1',
+      authService,
+      analyticsRepository,
       clock,
     })
   }

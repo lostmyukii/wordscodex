@@ -36,6 +36,10 @@ function createAuthClient(overrides: Partial<AuthClient> = {}) {
       },
     }),
     refresh: vi.fn().mockRejectedValue(new Error('未登录')),
+    deleteAccount: vi.fn().mockResolvedValue({
+      deleted: true,
+      anonymizedAnalytics: true,
+    }),
   }
 
   return {

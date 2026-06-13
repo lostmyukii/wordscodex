@@ -160,6 +160,16 @@ class MemoryAuthRepository implements AuthRepository {
     return Promise.resolve()
   }
 
+  deleteUser(userId: string) {
+    const user = this.users.get(userId)
+    if (user?.email) this.userIdsByEmail.delete(user.email)
+    this.users.delete(userId)
+    for (const [sessionId, session] of this.sessions) {
+      if (session.userId === userId) this.sessions.delete(sessionId)
+    }
+    return Promise.resolve()
+  }
+
   private saveUser(user: User) {
     const nextUser = { ...user }
     this.users.set(nextUser.id, nextUser)
@@ -335,5 +345,23 @@ describe('AuthService', () => {
     await expect(
       service.getCurrentUser(session.response.accessToken),
     ).resolves.toEqual(session.response.user)
+  })
+
+  it('deletes the current user and rejects the same access token afterwards', async () => {
+    const session = await service.createGuest({
+      timezone: 'Asia/Shanghai',
+      now,
+    })
+
+    await expect(
+      service.deleteCurrentUser(session.response.accessToken),
+    ).resolves.toEqual({
+      deleted: true,
+      anonymizedAnalytics: true,
+    })
+    await expectAuthError(
+      service.getCurrentUser(session.response.accessToken),
+      'UNAUTHORIZED',
+    )
   })
 })

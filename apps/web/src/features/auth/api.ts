@@ -1,9 +1,11 @@
 import {
   authSessionResponseSchema,
+  deleteAccountResponseSchema,
   errorResponseSchema,
   requestCodeResponseSchema,
   type ApiErrorCode,
   type AuthSessionResponse,
+  type DeleteAccountResponse,
 } from '@wordscodex/contracts'
 
 const configuredApiOrigin: unknown = import.meta.env.VITE_API_ORIGIN
@@ -57,6 +59,7 @@ export type AuthClient = {
   }): Promise<AuthSessionResponse>
   guest(timezone: string): Promise<AuthSessionResponse>
   refresh(): Promise<AuthSessionResponse>
+  deleteAccount(accessToken: string): Promise<DeleteAccountResponse>
 }
 
 export const authApi: AuthClient = {
@@ -102,6 +105,18 @@ export const authApi: AuthClient = {
         method: 'POST',
       },
       (value) => authSessionResponseSchema.parse(value),
+    )
+  },
+  deleteAccount(accessToken: string) {
+    return request(
+      '/me',
+      {
+        method: 'DELETE',
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+        },
+      },
+      (value) => deleteAccountResponseSchema.parse(value),
     )
   },
 }

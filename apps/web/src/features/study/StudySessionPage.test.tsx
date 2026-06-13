@@ -10,9 +10,18 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth/auth-store'
 import { StudySessionPage } from './StudySessionPage'
+import type { TrackAnalyticsEvent } from '../analytics/track-event'
 import type { StudyClient } from './api'
+import { offlineReviewSyncCompletedEventName } from './offline-review-sync'
+import type { StudySessionCacheClient } from './offline-session-cache'
+import type {
+  OfflineReviewQueueClient,
+  PendingReviewSubmission,
+} from './offline-review-queue'
 
 const fixedIso = '2026-06-13T00:00:00.000Z'
+
+type EnqueueReviewInput = Parameters<OfflineReviewQueueClient['enqueue']>[0]
 
 const user: User = {
   id: 'user_123',
@@ -169,7 +178,49 @@ function createStudyClient(overrides: Partial<StudyClient> = {}) {
   }
 }
 
-function renderStudySession(setup = createStudyClient()) {
+function createEmptyReviewQueue(): OfflineReviewQueueClient {
+  return {
+    enqueue: vi
+      .fn()
+      .mockImplementation(
+        (input: EnqueueReviewInput): Promise<PendingReviewSubmission> =>
+          Promise.resolve(toPendingReviewSubmission(input)),
+      ),
+    listBySession: vi.fn().mockResolvedValue([]),
+    listReady: vi.fn().mockResolvedValue([]),
+    getSummary: vi.fn().mockResolvedValue(emptyReviewQueueSummary),
+    markFailed: vi.fn().mockResolvedValue(undefined),
+    markSynced: vi.fn().mockResolvedValue(undefined),
+  }
+}
+
+const emptyReviewQueueSummary = {
+  pendingCount: 0,
+  readyCount: 0,
+  nextRetryAt: null,
+  lastError: null,
+}
+
+function toPendingReviewSubmission(
+  input: EnqueueReviewInput,
+): PendingReviewSubmission {
+  return {
+    ...input,
+    wordId: input.review.wordId,
+    createdAt: input.createdAt ?? fixedIso,
+    retryCount: 0,
+    lastAttemptAt: null,
+  }
+}
+
+function renderStudySession(
+  setup = createStudyClient(),
+  options: {
+    sessionCache?: StudySessionCacheClient
+    reviewQueue?: OfflineReviewQueueClient
+    trackEvent?: TrackAnalyticsEvent
+  } = {},
+) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -181,7 +232,16 @@ function renderStudySession(setup = createStudyClient()) {
     [
       {
         path: '/study/session/:sessionId',
-        element: <StudySessionPage studyApi={setup.client} />,
+        element: (
+          <StudySessionPage
+            studyApi={setup.client}
+            reviewQueue={options.reviewQueue ?? createEmptyReviewQueue()}
+            {...(options.trackEvent ? { trackEvent: options.trackEvent } : {})}
+            {...(options.sessionCache
+              ? { sessionCache: options.sessionCache }
+              : {})}
+          />
+        ),
       },
       {
         path: '/home',
@@ -231,6 +291,46 @@ describe('StudySessionPage', () => {
     expect(screen.getByRole('button', { name: '认识' })).toBeInTheDocument()
   })
 
+  it('caches the server study session for offline recovery', async () => {
+    const save = vi.fn().mockResolvedValue(undefined)
+    const sessionCache: StudySessionCacheClient = {
+      save,
+      load: vi.fn().mockResolvedValue(null),
+      delete: vi.fn().mockResolvedValue(undefined),
+      clearExpired: vi.fn().mockResolvedValue(undefined),
+    }
+
+    renderStudySession(createStudyClient(), { sessionCache })
+
+    await screen.findByRole('heading', { name: '学习会话' })
+    await waitFor(() => expect(save).toHaveBeenCalledWith(sessionResponse))
+  })
+
+  it('uses a cached session when the server request fails', async () => {
+    const load = vi.fn().mockResolvedValue(sessionResponse)
+    const sessionCache: StudySessionCacheClient = {
+      save: vi.fn().mockResolvedValue(undefined),
+      load,
+      delete: vi.fn().mockResolvedValue(undefined),
+      clearExpired: vi.fn().mockResolvedValue(undefined),
+    }
+
+    renderStudySession(
+      createStudyClient({
+        getSession: vi.fn().mockRejectedValue(new Error('网络连接失败。')),
+      }),
+      { sessionCache },
+    )
+
+    expect(
+      await screen.findByText('已从本地缓存恢复学习会话'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'ability 的中文意思是？' }),
+    ).toBeInTheDocument()
+    expect(load).toHaveBeenCalledWith('session_123')
+  })
+
   it('labels review sessions as due review tasks', async () => {
     renderStudySession(
       createStudyClient({
@@ -270,6 +370,219 @@ describe('StudySessionPage', () => {
       expect.stringMatching(/^review_session_123_word_ability_/),
       'access-token',
     )
+  })
+
+  it('queues a failed review submission and marks the answer as pending sync', async () => {
+    let enqueueCallCount = 0
+    const trackEvent = vi.fn<TrackAnalyticsEvent>().mockResolvedValue(undefined)
+    const queuedInputRef: { current: EnqueueReviewInput | null } = {
+      current: null,
+    }
+    const enqueue: OfflineReviewQueueClient['enqueue'] = (input) => {
+      enqueueCallCount += 1
+      queuedInputRef.current = input
+      return Promise.resolve(toPendingReviewSubmission(input))
+    }
+    const reviewQueue: OfflineReviewQueueClient = {
+      enqueue,
+      listBySession: vi.fn().mockResolvedValue([]),
+      listReady: vi.fn().mockResolvedValue([]),
+      getSummary: vi.fn().mockResolvedValue(emptyReviewQueueSummary),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+      markSynced: vi.fn().mockResolvedValue(undefined),
+    }
+
+    renderStudySession(
+      createStudyClient({
+        submitReview: vi.fn().mockRejectedValue(new Error('网络连接失败。')),
+      }),
+      { reviewQueue, trackEvent },
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: '认识' }))
+
+    expect(await screen.findByText('作答待同步')).toBeInTheDocument()
+    expect(screen.getByText(/还有 1 条作答待同步/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '完成会话' })).toBeNull()
+    expect(enqueueCallCount).toBe(1)
+    const queuedInput = queuedInputRef.current
+    expect(queuedInput).toBeDefined()
+    if (!queuedInput) throw new Error('Expected a queued review input')
+    expect(queuedInput.sessionId).toBe('session_123')
+    expect(queuedInput.idempotencyKey).toMatch(
+      /^review_session_123_word_ability_/,
+    )
+    expect(queuedInput.review).toMatchObject({
+      wordId: 'word_ability',
+      rating: 'good',
+      answer: '认识',
+    })
+    expect(queuedInput.lastError).toBe('网络连接失败。')
+    await waitFor(() =>
+      expect(trackEvent).toHaveBeenCalledWith({
+        name: 'offline_queue_created',
+        properties: {
+          pendingCount: 1,
+          retryCount: 0,
+          sessionMode: 'new_words',
+        },
+      }),
+    )
+    const trackedEvents = trackEvent.mock.calls.map(([event]) => event)
+    expect(
+      trackedEvents.some((event) =>
+        Object.prototype.hasOwnProperty.call(event.properties ?? {}, 'answer'),
+      ),
+    ).toBe(false)
+    expect(
+      trackedEvents.some((event) =>
+        Object.prototype.hasOwnProperty.call(
+          event.properties ?? {},
+          'answerText',
+        ),
+      ),
+    ).toBe(false)
+  })
+
+  it('syncs pending reviews with the original idempotency key before completion', async () => {
+    const pendingReview: PendingReviewSubmission = {
+      idempotencyKey: 'review_session_123_word_ability_pending',
+      sessionId: 'session_123',
+      wordId: 'word_ability',
+      review: {
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '认识',
+        reviewedAt: fixedIso,
+      },
+      createdAt: fixedIso,
+      retryCount: 0,
+      lastError: '网络连接失败。',
+      lastAttemptAt: null,
+    }
+    const submitReview = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('网络连接失败。'))
+      .mockResolvedValueOnce(submitReviewResponse)
+    let pendingReviews: PendingReviewSubmission[] = []
+    const enqueue = vi.fn(() => {
+      pendingReviews = [pendingReview]
+      return Promise.resolve(pendingReview)
+    })
+    const listBySession = vi.fn(() => Promise.resolve(pendingReviews))
+    const markFailed = vi.fn(() => Promise.resolve())
+    const markSynced = vi.fn(() => {
+      pendingReviews = []
+      return Promise.resolve()
+    })
+    const reviewQueue: OfflineReviewQueueClient = {
+      enqueue,
+      listBySession,
+      listReady: vi.fn(() => Promise.resolve(pendingReviews)),
+      getSummary: vi.fn().mockResolvedValue(emptyReviewQueueSummary),
+      markFailed,
+      markSynced,
+    }
+
+    renderStudySession(
+      createStudyClient({
+        submitReview,
+      }),
+      { reviewQueue },
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: '认识' }))
+    expect(await screen.findByText('作答待同步')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '同步待提交作答' }))
+
+    expect(await screen.findByText('作答已记录')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '完成会话' })).toBeInTheDocument()
+    expect(submitReview).toHaveBeenLastCalledWith(
+      'session_123',
+      pendingReview.review,
+      'review_session_123_word_ability_pending',
+      'access-token',
+    )
+    expect(markSynced).toHaveBeenCalledWith(
+      'review_session_123_word_ability_pending',
+    )
+  })
+
+  it('refreshes stale pending review state after background sync completes', async () => {
+    const pendingReview: PendingReviewSubmission = {
+      idempotencyKey: 'review_session_123_word_ability_pending',
+      sessionId: 'session_123',
+      wordId: 'word_ability',
+      review: {
+        wordId: 'word_ability',
+        questionType: 'word_to_meaning',
+        rating: 'good',
+        isCorrect: true,
+        responseMs: 4200,
+        answer: '认识',
+        reviewedAt: fixedIso,
+      },
+      createdAt: fixedIso,
+      retryCount: 0,
+      lastError: '网络连接失败。',
+      lastAttemptAt: null,
+    }
+    const restoredSession = {
+      ...sessionResponse,
+      reviews: [
+        {
+          wordId: 'word_ability',
+          questionType: 'word_to_meaning',
+          rating: 'good',
+          isCorrect: true,
+          responseMs: 4200,
+          answer: '认识',
+          reviewedAt: fixedIso,
+          progress: submitReviewResponse.progress,
+        },
+      ],
+    } satisfies StudySessionResponse
+    const getSession = vi
+      .fn()
+      .mockResolvedValueOnce(sessionResponse)
+      .mockResolvedValueOnce(restoredSession)
+    let pendingReviews: PendingReviewSubmission[] = [pendingReview]
+    const reviewQueue: OfflineReviewQueueClient = {
+      enqueue: vi.fn(),
+      listBySession: vi.fn(() => Promise.resolve(pendingReviews)),
+      listReady: vi.fn(() => Promise.resolve(pendingReviews)),
+      getSummary: vi.fn().mockResolvedValue(emptyReviewQueueSummary),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+      markSynced: vi.fn().mockResolvedValue(undefined),
+    }
+
+    renderStudySession(
+      createStudyClient({
+        getSession,
+      }),
+      { reviewQueue },
+    )
+
+    expect(await screen.findByText('作答待同步')).toBeInTheDocument()
+    expect(screen.getByText(/还有 1 条作答待同步/)).toBeInTheDocument()
+
+    pendingReviews = []
+    fireEvent(
+      window,
+      new CustomEvent(offlineReviewSyncCompletedEventName, {
+        detail: {
+          syncedCount: 1,
+        },
+      }),
+    )
+
+    expect(await screen.findByText('作答已记录')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '完成会话' })).toBeInTheDocument()
+    await waitFor(() => expect(getSession).toHaveBeenCalledTimes(2))
   })
 
   it('completes the answered session and navigates to the result page', async () => {

@@ -3,7 +3,7 @@ import type {
   SubmitReviewResponse,
 } from '@wordscodex/contracts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { studyApi } from './api'
+import { studyApi, type StudyApiError } from './api'
 
 const word = {
   id: 'word_1',
@@ -135,6 +135,39 @@ describe('studyApi', () => {
     expect(headers.get('authorization')).toBe('Bearer access-token')
     expect(headers.get('content-type')).toBe('application/json')
     expect(headers.get('idempotency-key')).toBe('idem_123')
+  })
+
+  it('exposes the stable API error code on failed study requests', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                code: 'UNAUTHORIZED',
+                message: '登录状态已失效，请重新登录。',
+                requestId: 'req_123',
+              },
+            }),
+            {
+              status: 401,
+              headers: {
+                'content-type': 'application/json',
+              },
+            },
+          ),
+        ),
+      ),
+    )
+
+    await expect(
+      studyApi.getToday('expired-access-token'),
+    ).rejects.toMatchObject({
+      name: 'StudyApiError',
+      code: 'UNAUTHORIZED',
+      message: '登录状态已失效，请重新登录。',
+    } satisfies Partial<StudyApiError>)
   })
 })
 

@@ -46,6 +46,11 @@ export const authSessionResponseSchema = z.object({
   user: userSchema,
 })
 
+export const deleteAccountResponseSchema = z.object({
+  deleted: z.literal(true),
+  anonymizedAnalytics: z.literal(true),
+})
+
 export const authErrorCodeSchema = z.enum(authErrorCodes)
 export const apiErrorCodeSchema = z.enum([
   ...authErrorCodes,
@@ -54,6 +59,7 @@ export const apiErrorCodeSchema = z.enum([
   'NO_ACTIVE_STUDY_PLAN',
   'EMPTY_STUDY_SESSION',
   'EMPTY_MISTAKE_SESSION',
+  'CHECKIN_NOT_ALLOWED',
   'IDEMPOTENCY_KEY_REQUIRED',
   'STUDY_SESSION_INCOMPLETE',
 ])
@@ -72,6 +78,7 @@ export type RequestCodeResponse = z.infer<typeof requestCodeResponseSchema>
 export type VerifyCodeRequest = z.infer<typeof verifyCodeRequestSchema>
 export type GuestLoginRequest = z.infer<typeof guestLoginRequestSchema>
 export type AuthSessionResponse = z.infer<typeof authSessionResponseSchema>
+export type DeleteAccountResponse = z.infer<typeof deleteAccountResponseSchema>
 export type AuthErrorCode = z.infer<typeof authErrorCodeSchema>
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>
 export type ErrorResponse = z.infer<typeof errorResponseSchema>

@@ -1,5 +1,6 @@
 import {
   authSessionResponseSchema,
+  deleteAccountResponseSchema,
   errorResponseSchema,
   type User,
 } from '@wordscodex/contracts'
@@ -147,6 +148,16 @@ class MemoryAuthRepository implements AuthRepository {
       (candidate) => candidate.refreshTokenHash === refreshTokenHash,
     )
     if (session) session.revokedAt = fixedNow
+    return Promise.resolve()
+  }
+
+  deleteUser(userId: string) {
+    const user = this.users.get(userId)
+    if (user?.email) this.userIdsByEmail.delete(user.email)
+    this.users.delete(userId)
+    for (const [sessionId, session] of this.sessions) {
+      if (session.userId === userId) this.sessions.delete(sessionId)
+    }
     return Promise.resolve()
   }
 
@@ -323,6 +334,41 @@ describe('authentication routes', () => {
       email: 'learner@example.com',
       accountType: 'registered',
     })
+  })
+
+  it('deletes the current account, clears the refresh cookie, and invalidates future access', async () => {
+    const login = await loginWithCode(app)
+    const loginBody = authSessionResponseSchema.parse(login.json())
+    const refreshCookie = extractCookieHeader(getSetCookie(login))
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/me',
+      headers: {
+        authorization: `Bearer ${loginBody.accessToken}`,
+        cookie: refreshCookie,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(deleteAccountResponseSchema.parse(response.json())).toEqual({
+      deleted: true,
+      anonymizedAnalytics: true,
+    })
+    expect(getSetCookie(response)).toContain(`${refreshCookieName}=;`)
+    expect(getSetCookie(response)).toContain('Max-Age=0')
+
+    const currentUserResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/me',
+      headers: {
+        authorization: `Bearer ${loginBody.accessToken}`,
+      },
+    })
+    const body = errorResponseSchema.parse(currentUserResponse.json())
+
+    expect(currentUserResponse.statusCode).toBe(401)
+    expect(body.error.code).toBe('UNAUTHORIZED')
   })
 
   it('returns the standard error payload for invalid input', async () => {

@@ -18,3 +18,16 @@ export {
   type ReviewRating,
   type SrsProgressSnapshot,
 } from './srs/schedule.js'
+export {
+  buildRecentCheckinDays,
+  calculateCurrentStreak,
+  type CheckinDay,
+  type RecentCheckinDay,
+} from './checkins/streak.js'
+export {
+  isOfflineReviewOperationReady,
+  markOfflineReviewOperationFailed,
+  selectPendingOfflineReviewOperations,
+  upsertOfflineReviewOperation,
+  type OfflineReviewOperation,
+} from './offline/review-queue.js'

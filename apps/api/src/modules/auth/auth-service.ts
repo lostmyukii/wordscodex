@@ -1,5 +1,9 @@
 import { randomInt } from 'node:crypto'
-import type { AuthErrorCode, AuthSessionResponse } from '@wordscodex/contracts'
+import type {
+  AuthErrorCode,
+  AuthSessionResponse,
+  DeleteAccountResponse,
+} from '@wordscodex/contracts'
 import type { VerificationCodeStore, VerifyCodeResult } from './code-store.js'
 import type { TokenService } from './token-service.js'
 
@@ -47,6 +51,7 @@ export interface AuthRepository {
     expiresAt: Date
   }): Promise<object | null>
   revokeSession(refreshTokenHash: string): Promise<void>
+  deleteUser(userId: string): Promise<void>
 }
 
 export interface VerificationCodeSender {
@@ -209,6 +214,27 @@ export class AuthService {
       )
       if (!user) throw new AuthServiceError('UNAUTHORIZED')
       return toPublicUser(user)
+    } catch (error) {
+      if (error instanceof AuthServiceError) throw error
+      throw new AuthServiceError('UNAUTHORIZED')
+    }
+  }
+
+  async deleteCurrentUser(accessToken: string): Promise<DeleteAccountResponse> {
+    try {
+      const payload =
+        await this.dependencies.tokenService.verifyAccessToken(accessToken)
+      const user = await this.dependencies.repository.findUserById(
+        payload.userId,
+      )
+      if (!user) throw new AuthServiceError('UNAUTHORIZED')
+
+      await this.dependencies.repository.deleteUser(user.id)
+
+      return {
+        deleted: true,
+        anonymizedAnalytics: true,
+      }
     } catch (error) {
       if (error instanceof AuthServiceError) throw error
       throw new AuthServiceError('UNAUTHORIZED')

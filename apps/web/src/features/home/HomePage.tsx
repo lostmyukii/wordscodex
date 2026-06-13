@@ -116,6 +116,14 @@ export function HomePage({ studyApi: client = studyApi }: HomePageProps) {
               : '完成至少 1 个学习会话后开放打卡'}
           </span>
         </div>
+        <div className="action-row compact">
+          <Link className="secondary-action" to="/checkin">
+            去打卡
+          </Link>
+          <Link className="secondary-action" to="/dashboard">
+            查看学习看板
+          </Link>
+        </div>
 
         {today.tasks.length > 0 ? (
           <div className="task-list" aria-label="今日任务列表">
@@ -150,6 +158,11 @@ export function HomePage({ studyApi: client = studyApi }: HomePageProps) {
           开始今日学习
         </button>
       </section>
+      <nav className="legal-link-row" aria-label="账号与合规链接">
+        <Link to="/privacy">隐私政策</Link>
+        <Link to="/terms">用户协议</Link>
+        <Link to="/account/delete">账号注销</Link>
+      </nav>
     </main>
   )
 }

@@ -3,6 +3,10 @@ import { useEffect } from 'react'
 import type { PropsWithChildren } from 'react'
 import { AuthApiError, authApi } from '../features/auth/api'
 import { useAuthStore } from '../features/auth/auth-store'
+import { OfflineSyncCenter } from '../features/study/OfflineSyncCenter'
+import { OfflineReviewSyncStatus } from '../features/study/OfflineReviewSyncStatus'
+import { BackgroundSyncController } from './BackgroundSyncController'
+import { PwaLifecycleStatusController } from './PwaLifecycleStatusController'
 
 const queryClient = new QueryClient()
 
@@ -44,6 +48,12 @@ export function AppProviders({ children }: PropsWithChildren) {
   }, [clearSession, finishInitialization, setSession])
 
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      {children}
+      <PwaLifecycleStatusController />
+      <BackgroundSyncController />
+      <OfflineSyncCenter />
+      <OfflineReviewSyncStatus />
+    </QueryClientProvider>
   )
 }

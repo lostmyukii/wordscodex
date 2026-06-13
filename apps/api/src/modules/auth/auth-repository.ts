@@ -129,4 +129,12 @@ export class PrismaAuthRepository {
       },
     })
   }
+
+  async deleteUser(userId: string) {
+    await this.prisma.user.delete({
+      where: {
+        id: userId,
+      },
+    })
+  }
 }

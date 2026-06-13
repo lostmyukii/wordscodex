@@ -52,24 +52,51 @@ test('selects a vocabulary book on mobile', async ({ page }) => {
     page.getByRole('heading', { name: 'ability 的中文意思是？' }),
   ).toBeVisible()
 
+  const studySessionGetPattern = /\/api\/v1\/study-sessions\/[^/]+$/
+  await page.route(studySessionGetPattern, async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.abort()
+      return
+    }
+
+    await route.continue()
+  })
+  await page.reload()
+  await expect(page.getByText('已从本地缓存恢复学习会话')).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'ability 的中文意思是？' }),
+  ).toBeVisible()
+  await page.unroute(studySessionGetPattern)
+  await page.reload()
+  await expect(
+    page.getByRole('heading', { name: 'ability 的中文意思是？' }),
+  ).toBeVisible()
+
+  const studySessionReviewPostPattern =
+    /\/api\/v1\/study-sessions\/[^/]+\/reviews$/
+  let blockedFirstReviewPost = false
+  await page.route(studySessionReviewPostPattern, async (route) => {
+    if (!blockedFirstReviewPost && route.request().method() === 'POST') {
+      blockedFirstReviewPost = true
+      await route.abort()
+      return
+    }
+
+    await route.continue()
+  })
+
   await page.getByRole('button', { name: '认识', exact: true }).click()
 
-  await expect(page.getByText('作答已记录')).toBeVisible()
-  await expect(page.getByText('下次复习：2026-06-15')).toBeVisible()
+  await expect(page.getByText('作答待同步')).toBeVisible()
+  const syncCenter = page.getByLabel('离线同步中心')
+  await expect(syncCenter).toBeVisible()
+  await expect(syncCenter.getByText('待同步 1 条作答')).toBeVisible()
+  await expect(page.getByRole('button', { name: '完成会话' })).toBeHidden()
 
-  await page.reload()
-  await expect(page).toHaveURL(/\/study\/session\/.+/)
-  await expect(page.getByText(/已答\s+1\s+题/)).toBeVisible()
-  await expect(page.getByText('作答已记录')).toBeVisible()
-  await expect(
-    page.getByText('已从服务端恢复作答记录，可继续完成会话。'),
-  ).toBeVisible()
-  await expect(
-    page.getByRole('button', { name: '认识', exact: true }),
-  ).toBeDisabled()
+  await page.unroute(studySessionReviewPostPattern)
 
   for (let answerIndex = 0; answerIndex < 10; answerIndex += 1) {
-    if (await page.getByRole('button', { name: '完成会话' }).isVisible()) {
+    if (await page.getByText(/还有 1 条作答待同步/).isVisible()) {
       break
     }
 
@@ -77,6 +104,27 @@ test('selects a vocabulary book on mobile', async ({ page }) => {
     await page.getByRole('button', { name: '认识', exact: true }).click()
     await expect(page.getByText('作答已记录')).toBeVisible()
   }
+
+  await expect(page.getByText(/还有 1 条作答待同步/)).toBeVisible()
+  await expect(page.getByRole('button', { name: '完成会话' })).toBeHidden()
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('online'))
+  })
+
+  await expect(page.getByText('已自动同步 1 条离线作答')).toBeVisible()
+  await expect(page.getByText(/还有 1 条作答待同步/)).toBeHidden()
+  await expect(page.getByRole('button', { name: '完成会话' })).toBeVisible()
+
+  await page.reload()
+  await expect(page).toHaveURL(/\/study\/session\/.+/)
+  await expect(page.getByText(/已答\s+5\s+题/)).toBeVisible()
+  await expect(page.getByText('作答已记录')).toBeVisible()
+  await expect(
+    page.getByText('已从服务端恢复作答记录，可继续完成会话。'),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: '认识', exact: true }),
+  ).toBeDisabled()
 
   await page.getByRole('button', { name: '完成会话' }).click()
 
@@ -90,4 +138,22 @@ test('selects a vocabulary book on mobile', async ({ page }) => {
   await expect(page).toHaveURL('/home')
   await expect(page.getByText('可打卡')).toBeVisible()
   await expect(page.getByText('今天已完成 1 个学习会话')).toBeVisible()
+
+  await page.getByRole('link', { name: '去打卡' }).click()
+
+  await expect(page).toHaveURL('/checkin')
+  await expect(page.getByRole('heading', { name: '今日打卡' })).toBeVisible()
+  await expect(page.getByText('今天还没有打卡')).toBeVisible()
+
+  await page.getByRole('button', { name: '今日打卡' }).click()
+
+  await expect(page.getByText('今日已打卡')).toBeVisible()
+  await expect(page.getByText('已连续打卡 1 天')).toBeVisible()
+
+  await page.getByRole('link', { name: '查看学习看板' }).click()
+
+  await expect(page).toHaveURL('/dashboard')
+  await expect(page.getByRole('heading', { name: '学习看板' })).toBeVisible()
+  await expect(page.getByText('连续打卡 1 天')).toBeVisible()
+  await expect(page.getByText('今日已打卡')).toBeVisible()
 })

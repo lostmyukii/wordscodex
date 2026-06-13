@@ -1,4 +1,5 @@
 import {
+  type ApiErrorCode,
   completeStudySessionResponseSchema,
   createStudySessionRequestSchema,
   errorResponseSchema,
@@ -23,7 +24,10 @@ const apiOrigin =
     : 'http://localhost:3001'
 
 export class StudyApiError extends Error {
-  constructor(message: string) {
+  constructor(
+    readonly code: ApiErrorCode,
+    message: string,
+  ) {
     super(message)
     this.name = 'StudyApiError'
   }
@@ -50,7 +54,7 @@ async function request<T>(
 
   if (!response.ok) {
     const error = errorResponseSchema.parse(body)
-    throw new StudyApiError(error.error.message)
+    throw new StudyApiError(error.error.code, error.error.message)
   }
 
   return parse(body)

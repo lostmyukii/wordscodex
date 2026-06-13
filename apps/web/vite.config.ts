@@ -9,6 +9,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
+      workbox: {
+        importScripts: ['sw-background-sync.js'],
+      },
       manifest: {
         name: 'Wordscodex 智能词汇学习',
         short_name: 'Wordscodex',

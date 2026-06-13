@@ -1,0 +1,13 @@
+.git
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+**/dist
+apps/web/test-results
+apps/web/playwright-report
+coverage
+dump.rdb
+*.log

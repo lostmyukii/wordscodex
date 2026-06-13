@@ -24,6 +24,22 @@ vi.mock('../features/auth/api', () => {
   }
 })
 
+vi.mock('../features/study/OfflineReviewSyncStatus', () => ({
+  OfflineReviewSyncStatus: () => null,
+}))
+
+vi.mock('../features/study/OfflineSyncCenter', () => ({
+  OfflineSyncCenter: () => null,
+}))
+
+vi.mock('./PwaLifecycleStatusController', () => ({
+  PwaLifecycleStatusController: () => null,
+}))
+
+vi.mock('./BackgroundSyncController', () => ({
+  BackgroundSyncController: () => null,
+}))
+
 const guestSession = {
   accessToken: 'guest-token',
   expiresInSeconds: 900,

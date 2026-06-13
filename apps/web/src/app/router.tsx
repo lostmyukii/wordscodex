@@ -1,59 +1,127 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import {
+  createBrowserRouter,
+  RouterProvider,
+  type RouteObject,
+} from 'react-router-dom'
 import { App } from './App'
-import { LoginPage } from '../features/auth/LoginPage'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
-import { HomePage } from '../features/home/HomePage'
-import { MistakesPage } from '../features/mistakes/MistakesPage'
-import { OnboardingEntryPage } from '../features/onboarding/OnboardingEntryPage'
-import { StudyResultPage } from '../features/study/StudyResultPage'
-import { StudySessionPage } from '../features/study/StudySessionPage'
-import { VocabularyBookDetailPage } from '../features/vocabulary/VocabularyBookDetailPage'
-import { VocabularyBooksPage } from '../features/vocabulary/VocabularyBooksPage'
 
-export function createAppRouter() {
-  return createBrowserRouter([
+export function createAppRoutes(): RouteObject[] {
+  return [
     {
       path: '/',
-      element: <App />,
+      Component: App,
     },
     {
       path: '/login',
-      element: <LoginPage />,
+      lazy: async () => {
+        const { LoginPage } = await import('../features/auth/LoginPage')
+        return { Component: LoginPage }
+      },
     },
     {
-      element: <ProtectedRoute />,
+      path: '/privacy',
+      lazy: async () => {
+        const { LegalPage } = await import('../features/legal/LegalPage')
+        return { Component: () => <LegalPage kind="privacy" /> }
+      },
+    },
+    {
+      path: '/terms',
+      lazy: async () => {
+        const { LegalPage } = await import('../features/legal/LegalPage')
+        return { Component: () => <LegalPage kind="terms" /> }
+      },
+    },
+    {
+      Component: ProtectedRoute,
       children: [
         {
+          path: '/account/delete',
+          lazy: async () => {
+            const { AccountDeletionPage } =
+              await import('../features/account/AccountDeletionPage')
+            return { Component: AccountDeletionPage }
+          },
+        },
+        {
           path: '/onboarding',
-          element: <OnboardingEntryPage />,
+          lazy: async () => {
+            const { OnboardingEntryPage } =
+              await import('../features/onboarding/OnboardingEntryPage')
+            return { Component: OnboardingEntryPage }
+          },
         },
         {
           path: '/home',
-          element: <HomePage />,
+          lazy: async () => {
+            const { HomePage } = await import('../features/home/HomePage')
+            return { Component: HomePage }
+          },
         },
         {
           path: '/mistakes',
-          element: <MistakesPage />,
+          lazy: async () => {
+            const { MistakesPage } =
+              await import('../features/mistakes/MistakesPage')
+            return { Component: MistakesPage }
+          },
+        },
+        {
+          path: '/checkin',
+          lazy: async () => {
+            const { CheckinPage } =
+              await import('../features/checkin/CheckinPage')
+            return { Component: CheckinPage }
+          },
+        },
+        {
+          path: '/dashboard',
+          lazy: async () => {
+            const { DashboardPage } =
+              await import('../features/dashboard/DashboardPage')
+            return { Component: DashboardPage }
+          },
         },
         {
           path: '/study/session/:sessionId',
-          element: <StudySessionPage />,
+          lazy: async () => {
+            const { StudySessionPage } =
+              await import('../features/study/StudySessionPage')
+            return { Component: StudySessionPage }
+          },
         },
         {
           path: '/study/result/:sessionId',
-          element: <StudyResultPage />,
+          lazy: async () => {
+            const { StudyResultPage } =
+              await import('../features/study/StudyResultPage')
+            return { Component: StudyResultPage }
+          },
         },
         {
           path: '/books',
-          element: <VocabularyBooksPage />,
+          lazy: async () => {
+            const { VocabularyBooksPage } =
+              await import('../features/vocabulary/VocabularyBooksPage')
+            return { Component: VocabularyBooksPage }
+          },
         },
         {
           path: '/books/:bookId',
-          element: <VocabularyBookDetailPage />,
+          lazy: async () => {
+            const { VocabularyBookDetailPage } =
+              await import('../features/vocabulary/VocabularyBookDetailPage')
+            return { Component: VocabularyBookDetailPage }
+          },
         },
       ],
     },
-  ])
+  ]
+}
+
+export function createAppRouter() {
+  return createBrowserRouter(createAppRoutes())
 }
 
 export function AppRouter() {

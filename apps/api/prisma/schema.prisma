@@ -94,6 +94,8 @@ model User {
   wordProgress  UserWordProgress[]
   studySessions StudySession[]
   reviewLogs    ReviewLog[]
+  checkins      Checkin[]
+  analytics     AnalyticsEvent[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 }
@@ -255,4 +257,33 @@ model ReviewLog {
   @@index([sessionId])
   @@index([userId, reviewedAt])
   @@index([wordId, reviewedAt])
+}
+
+model AnalyticsEvent {
+  id            String   @id @default(cuid())
+  clientEventId String   @unique
+  userId        String?
+  name          String
+  properties    Json
+  occurredAt    DateTime
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([name, occurredAt])
+}
+
+model Checkin {
+  id                String   @id @default(cuid())
+  userId            String
+  dateKey           String
+  checkedInAt       DateTime @default(now())
+  completedSessions Int      @default(0)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, dateKey])
+  @@index([userId, dateKey])
+  @@index([checkedInAt])
 }

@@ -1,7 +1,24 @@
 export {
+  analyticsEventNameSchema,
+  analyticsPropertiesSchema,
+  analyticsSummaryEventSchema,
+  analyticsSummaryQuerySchema,
+  analyticsSummaryResponseSchema,
+  createAnalyticsEventRequestSchema,
+  createAnalyticsEventResponseSchema,
+  type AnalyticsEventName,
+  type AnalyticsProperties,
+  type AnalyticsSummaryEvent,
+  type AnalyticsSummaryQuery,
+  type AnalyticsSummaryResponse,
+  type CreateAnalyticsEventRequest,
+  type CreateAnalyticsEventResponse,
+} from './analytics.js'
+export {
   apiErrorCodeSchema,
   authErrorCodeSchema,
   authSessionResponseSchema,
+  deleteAccountResponseSchema,
   errorResponseSchema,
   guestLoginRequestSchema,
   requestCodeRequestSchema,
@@ -11,6 +28,7 @@ export {
   type ApiErrorCode,
   type AuthErrorCode,
   type AuthSessionResponse,
+  type DeleteAccountResponse,
   type ErrorResponse,
   type GuestLoginRequest,
   type RequestCodeRequest,
@@ -29,6 +47,28 @@ export {
   type MistakeListResponse,
   type MistakeMasteryState,
 } from './mistakes.js'
+export {
+  checkinListResponseSchema,
+  checkinSchema,
+  checkinSummarySchema,
+  createCheckinResponseSchema,
+  dateKeySchema,
+  recentCheckinDaySchema,
+  type Checkin,
+  type CheckinListResponse,
+  type CheckinSummary,
+  type CreateCheckinResponse,
+  type DateKey,
+  type RecentCheckinDay,
+} from './checkin.js'
+export {
+  dashboardSummaryResponseSchema,
+  dashboardTrendDaySchema,
+  dashboardTrendsResponseSchema,
+  type DashboardSummaryResponse,
+  type DashboardTrendDay,
+  type DashboardTrendsResponse,
+} from './dashboard.js'
 export {
   activeStudyPlanResponseSchema,
   createStudyPlanRequestSchema,

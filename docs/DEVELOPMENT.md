@@ -196,8 +196,7 @@ MVP 使用模块化单体，不拆微服务。学习调度模块保持纯领域�
 │           │   ├── study/
 │           │   ├── review/
 │           │   ├── mistakes/
-│           │   ├── checkins/
-│           │   └── analytics/
+│           │   └── engagement/
 │           └── shared/
 ├── packages/
 │   ├── contracts/
@@ -228,6 +227,8 @@ MVP 使用模块化单体，不拆微服务。学习调度模块保持纯领域�
 | `/checkin` | 打卡日历 | 是 | 今日状态、连续天数和历史日历 |
 | `/settings` | 设置 | 是 | 学习计划、提醒、音频和数据设置 |
 | `/offline` | 离线提示 | 否 | 网络状态、可用离线能力和重试 |
+
+当前 Web 路由已按页面使用 React Router `lazy` 动态导入：`/login`、新手引导、今日首页、词库、学习会话、学习结果、错词本、打卡和看板会生成独立 chunk，入口应用壳只保留启动、鉴权守卫、PWA 生命周期和共享运行时代码。
 
 ### 6.1 响应式要求
 
@@ -389,6 +390,20 @@ type ReviewLog = {
 }
 ```
 
+#### Checkin
+
+```ts
+type Checkin = {
+  id: string
+  userId: string
+  dateKey: string
+  checkedInAt: string
+  completedSessions: number
+  createdAt: string
+  updatedAt: string
+}
+```
+
 ### 7.2 数据约束
 
 - `ReviewLog.idempotencyKey` 全局唯一，客户端重试不得生成重复学习记录；
@@ -399,6 +414,8 @@ type ReviewLog = {
 - `nextReviewAt` 使用 UTC 存储，按用户时区展示；
 - 单词内容通过版本管理更新，不直接覆盖历史学习记录；
 - 学习结果写入和进度调度必须在同一个数据库事务中完成；
+- `Checkin` 通过 `userId + dateKey` 保证同一用户同一天只能打卡一次；
+- 打卡日期使用用户时区生成 `YYYY-MM-DD` dateKey，展示连续打卡时按 dateKey 计算；
 - 删除账号时按隐私要求删除或匿名化个人数据，统计数据不得保留可反查标识。
 
 ## 8. SRS v1 调度规则
@@ -534,7 +551,7 @@ GET    /api/v1/study-sessions/:sessionId/result
 `GET /api/v1/study-sessions/:sessionId/result`：服务端根据 active 学习计划返回今日任务，
 固化首个新词学习会话的题目顺序，通过 `ReviewLog` 与 `UserWordProgress` 完成主动回忆提交，
 并在所有题目完成作答后标记会话完成、生成学习结果。`GET /api/v1/today` 会根据当日 completed
-会话返回 `canCheckIn`，实际打卡写入接口属于后续打卡模块范围。
+会话返回 `canCheckIn`，前端会从今日首页和学习结果页引导到 `/checkin`。
 
 当前 Stage 2 已开始落地到期复习队列：`GET /api/v1/today` 的复习计数限定在当前 active
 计划词库内，`POST /api/v1/study-sessions` 创建 `review` 或 `mixed` 会话时会按
@@ -550,8 +567,8 @@ GET    /api/v1/study-sessions/:sessionId/result
 
 当前 Stage 2 已落地学习会话刷新恢复：`GET /api/v1/study-sessions/:sessionId` 会在固定题目顺序之外返回
 已持久化的 `reviews`，其中包含作答、耗时、等级和服务端最终 `progress`；前端学习页会合并这些服务端记录与本地新提交，
-刷新后继续显示已答数量、下次复习时间和“完成会话”条件。断网作答、本地 IndexedDB 队列和离线恢复仍属于 Stage 3
-PWA/offline 同步范围。
+刷新后继续显示已答数量、下次复习时间和“完成会话”条件。Stage 3 已补充断网作答入队和已打开会话离线恢复第一版，
+后台自动同步、指数退避和鉴权失效暂停仍属于 PWA/offline 同步强化范围。
 
 创建会话请求：
 
@@ -599,7 +616,24 @@ GET    /api/v1/dashboard/summary
 GET    /api/v1/dashboard/trends?days=7
 GET    /api/v1/checkins
 POST   /api/v1/checkins
+POST   /api/v1/analytics/events
+GET    /api/v1/analytics/summary?days=7
 ```
+
+当前 Stage 3 第一版已落地打卡和学习看板闭环：`POST /api/v1/checkins` 会校验用户当天至少完成
+1 个学习会话，成功后写入 `Checkin`；重复请求返回同一天记录，不重复累计连续天数。`GET /api/v1/checkins`
+返回今日状态、连续天数、近 7 天打卡窗口和最近打卡记录。`GET /api/v1/dashboard/summary` 返回今日会话、
+已学习、已掌握、到期复习、累计作答、打卡天数和连续打卡；`GET /api/v1/dashboard/trends?days=7`
+返回近 7 天会话、作答和打卡趋势。前端 `/checkin` 与 `/dashboard` 已支持加载、错误重试、空状态和移动端布局。
+学习包缓存、作答失败入队、online 自动同步、PWA 安装/更新提示、同步进度中心、埋点写入、
+Service Worker Background Sync、埋点批量上报和指标摘要查询也已完成第一版。
+
+`POST /api/v1/analytics/events` 接收匿名或已登录用户的幂等埋点事件，使用 `clientEventId` 去重。携带有效
+Bearer token 时服务端会关联 `userId`；未携带 token 时按匿名事件写入；携带无效 token 时返回 `UNAUTHORIZED`，
+避免把已失效登录态误记为匿名用户。事件属性会通过 contracts 校验，禁止上传完整答案、邮箱、令牌和验证码等敏感字段。
+
+`GET /api/v1/analytics/summary?days=7` 需要有效 Bearer token，返回指定天数内的总事件数、匿名事件数、
+去重用户数和按事件名聚合的计数。该接口不返回原始 `properties`，避免把埋点明细作为用户行为内容泄露面。
 
 ## 10. 学习会话设计
 
@@ -640,7 +674,7 @@ POST   /api/v1/checkins
 
 - 打开已缓存的应用；
 - 查看最近一次今日任务；
-- 继续已下载且未过期的学习会话；
+- 恢复展示已下载且未过期的学习会话；
 - 将作答暂存到本地同步队列。
 
 离线时不允许：
@@ -650,7 +684,27 @@ POST   /api/v1/checkins
 - 生成新的服务端学习会话；
 - 将打卡显示为最终成功。
 
-恢复网络后按创建时间提交队列。连续失败采用指数退避；鉴权失效时暂停同步并引导重新登录。
+当前 Stage 3 已落地学习会话缓存第一版：成功打开 `/study/session/:sessionId` 后，前端会把
+`StudySessionResponse` 写入 IndexedDB；再次进入同一会话时若服务端请求失败，会从本地缓存恢复题目并明确显示
+“已从本地缓存恢复学习会话”。
+
+当前 Stage 3 也已落地作答待同步队列第一版：`POST /api/v1/study-sessions/:sessionId/reviews`
+提交失败时，前端会把作答体、`Idempotency-Key`、创建时间、重试次数、最后错误和最后尝试时间写入
+IndexedDB，并在学习页显示“作答待同步”。待同步记录存在时不能完成会话；用户可点击“同步待提交作答”，恢复网络后会使用
+原始 `Idempotency-Key` 提交，成功后删除本地队列记录并显示服务端返回的下次复习时间。
+
+当前 Stage 3 已继续落地后台自动同步第一版：应用启动和浏览器触发 `online` 事件时，会按创建时间同步已到重试时间的
+待提交作答，成功后删除本地队列记录并展示“已自动同步 N 条离线作答”。连续失败按指数退避筛选下一次同步候选；
+鉴权失效时会记录最后错误、暂停同一个 access token 的自动重试，并提示用户重新登录。全局同步进度中心已展示
+待同步数量、可立即同步数量、下次重试时间和最后错误，并提供“立即同步”操作。当前已增加 Service Worker
+Background Sync 渐进增强：支持该能力的浏览器会注册 `wordscodex-offline-review-sync` 和
+`wordscodex-analytics-flush` 标签；生成的 Workbox Service Worker 收到 sync 事件后会通知已打开客户端，
+由客户端携带当前 access token 同步离线作答，并批量 flush 本地埋点队列。不支持 Background Sync 的浏览器继续使用
+应用启动和 `online` 事件同步，不影响主学习流程。
+
+当前 Stage 3 已落地 PWA 生命周期提示第一版：浏览器触发 `beforeinstallprompt` 时，前端会阻止默认弹窗并展示“安装到桌面”
+操作；Service Worker 发现新版本时会展示“发现新版本”和“立即更新”操作，更新由 `vite-plugin-pwa` 与 `workbox-window`
+完成。安装提示展示、安装接受、新版本可用和应用更新已接入埋点；用户关闭策略和真机安装验收记录仍需补充。
 
 ## 12. 内容导入与质量
 
@@ -673,6 +727,10 @@ cet4,context,n.,上下文；语境,/ˈkɑːntekst/,https://cdn.example.com/conte
 - 导入生成明确的新增、更新、跳过和失败统计；
 - 资源版权来源可追踪。
 
+当前 Stage 4 已落地词库导入校验第一版：`pnpm vocabulary:validate <csv-file>` 会读取 CSV 并检查
+`book_slug`、`lemma`、`part_of_speech`、`definition_zh`、同词库重复 lemma、HTTPS 音频/图片 URL 和资源来源字段；
+`pnpm vocabulary:import <csv-file>` 复用同一套校验并输出 dry-run 统计，暂不直接写入生产数据库，避免绕过内容审核。
+
 ## 13. 安全与合规
 
 - 生产环境只使用 HTTPS；
@@ -684,6 +742,16 @@ cet4,context,n.,上下文；语境,/ˈkɑːntekst/,https://cdn.example.com/conte
 - 提供隐私政策、用户协议、账号注销和数据删除入口；
 - AI 功能进入研发前必须补充内容安全、成本和未成年人保护方案；
 - 图片、音频、例句和词库必须保留授权或来源记录。
+
+当前 Stage 4 已落地 API 安全护栏第一版：Fastify 在非测试环境启用日志并对 `authorization`、cookie、
+验证码、邮箱、access token 和 refresh token 等字段做 redaction；刷新令牌 cookie 统一由共享 helper 生成，
+生产环境必须带 `HttpOnly`、`Secure`、`SameSite=Lax` 和 `/api/v1/auth` 路径限制。验证码、登录、刷新、
+登出和当前用户接口均配置路由级限流，避免上线前出现未受控的认证写入口。
+
+当前 Stage 4 第二批已落地基础合规入口：Web 端提供 `/privacy` 隐私政策、`/terms` 用户协议和受保护的
+`/account/delete` 账号注销页面；API 提供 `DELETE /api/v1/me`，要求 Bearer access token，成功后删除当前用户、
+清理 refresh cookie，并依赖数据库关系将学习计划、学习记录、打卡和登录会话级联删除；分析事件通过
+`AnalyticsEvent.userId onDelete: SetNull` 断开用户标识，只保留不可反查的聚合统计。
 
 ## 14. 可观测性与埋点
 
@@ -703,11 +771,20 @@ mistake_removed
 checkin_completed
 pwa_install_prompt_shown
 pwa_installed
+pwa_update_ready
+pwa_update_applied
 offline_queue_created
 offline_queue_synced
 ```
 
 事件只记录分析所需字段，不上传用户完整答案文本，除非产品明确需要且已完成隐私评估。
+
+当前 Stage 3 已落地埋点基础链路第一版：`packages/contracts` 定义稳定事件名、请求响应 Schema 和敏感属性过滤；
+API 将事件写入 `AnalyticsEvent`，按 `clientEventId` 幂等去重；Web 端在 PWA 安装/更新、离线作答入队和离线队列同步成功时触发事件。
+发送失败或浏览器离线时，事件会写入 IndexedDB `analyticsEvents` 队列并保留重试次数、最后错误和最后尝试时间。
+当前也已补充批量 flush 和指标摘要查询：客户端会在启动、恢复在线、埋点入队和 Background Sync 消息到达时按创建时间批量发送
+ready 事件，成功后删除本地记录，失败后记录退避元数据并停止当前批次；服务端 `GET /api/v1/analytics/summary`
+返回聚合计数用于 MVP 观察。后续 Stage 4 可补充更完整的指标 UI、隐私审计和生产告警。
 
 ### 14.2 MVP 指标
 
@@ -742,6 +819,8 @@ offline_queue_synced
 - 单词卡片内容和音频状态；
 - 选择题、拼写题的提交与反馈；
 - 学习进度在刷新后恢复；
+- 打卡页的今日状态、重复打卡和错误重试；
+- 学习看板的统计摘要、连续打卡和错误重试；
 - 网络错误、空状态和加载状态；
 - 键盘操作及基础可访问性。
 
@@ -776,6 +855,7 @@ offline_queue_synced
 - 学习卡片切换交互响应目标小于 200ms；
 - 首屏 JavaScript gzip 后建议不超过 250KB；
 - 非首屏页面按路由懒加载；
+- 当前 Web 构建应保持页面级 chunk 拆分，避免再次出现单个业务入口 chunk 超过 500KB 的警告；
 - 图片使用现代格式和明确尺寸，避免布局抖动；
 - 音频按需加载，不在首页预载整套词库；
 - 大型词库不一次性写入浏览器内存。
@@ -789,6 +869,21 @@ offline_queue_synced
 - 动画遵循 `prefers-reduced-motion`；
 - 表单错误与输入框建立可读关联；
 - 页面标题和主标题随路由正确更新。
+
+当前 Stage 4 第二批已补充发布验收证据文件：`scripts/release-readiness/fixtures/stage4-acceptance.json`
+记录性能预算、页面级懒加载、基础可访问性、备份恢复、staging 验收路径和合规入口。`pnpm release:check`
+会读取该文件并检查对应门禁；真实 Lighthouse、键盘遍历和 staging 截图证据仍需在外部 staging 环境执行并更新该文件。
+
+当前 Stage 4 第三批已补充本地构建审计：`pnpm release:audit` 会检查 `apps/web/dist` 中首屏 JS gzip
+是否小于 250KB、单个 JS chunk gzip 是否小于 500KB、关键页面是否保持页面级 lazy chunk、`index.html`
+是否包含 PWA manifest，以及 CSS 是否包含 `focus-visible` 和 `prefers-reduced-motion`。该命令用于本地和 CI
+快速阻断明显性能/基础无障碍回退，不能替代 staging 上真实设备 Lighthouse 和人工键盘遍历记录。
+
+当前 Stage 4 外部 staging 演练已部署到独立端口 `http://192.144.129.104:18080/`：公网仅暴露
+`18080 -> web:80`，API、PostgreSQL 和 Redis 均位于 Docker Compose 内部网络。远端构建开启 gzip、
+hashed assets 长期缓存和 `robots.txt`；Lighthouse 移动验收记录、键盘 smoke、API smoke 与备份恢复演练结果
+记录在 `scripts/release-readiness/fixtures/stage4-acceptance.json`。该环境为 HTTP staging 预览，不承担生产 HTTPS
+终态。
 
 ## 17. 环境与配置
 
@@ -820,6 +915,20 @@ OBJECT_STORAGE_SECRET_KEY
 `JWT_ACCESS_SECRET`，且不得设置 `AUTH_DEV_CODE`；测试环境可设置 `AUTH_DEV_CODE=123456`
 来稳定邮箱验证码流程。
 
+上线前必须在 staging 做一次备份恢复演练：
+
+```bash
+pg_dump "$DATABASE_URL" --format=custom --file=tmp/wordscodex-staging.dump
+createdb wordscodex_restore_drill
+pg_restore --clean --if-exists --dbname=wordscodex_restore_drill tmp/wordscodex-staging.dump
+pnpm db:deploy
+pnpm db:seed
+pnpm test:e2e
+```
+
+演练时将 `DATABASE_URL` 指向 staging 数据库；恢复验证时将 `DATABASE_URL` 指向临时恢复库，避免覆盖 staging
+主库。演练结果需要记录到 `scripts/release-readiness/fixtures/stage4-acceptance.json` 或对应发布记录中。
+
 ## 18. 研发阶段与交付标准
 
 ### 阶段 0：工程基线
@@ -848,28 +957,52 @@ OBJECT_STORAGE_SECRET_KEY
 - 到期复习队列（已落地 active 计划词库过滤、优先级排序和 review/mixed 会话创建）；
 - 错词本和消灭模式（已落地错词列表、`mistake_drill` 会话创建和连续正确 3 次后的状态回流）；
 - 幂等学习记录；
-- 学习会话恢复（已落地刷新后的服务端作答恢复，离线队列恢复进入 Stage 3）。
+- 学习会话恢复（已落地刷新后的服务端作答恢复，离线写队列恢复进入 Stage 3）。
 
 验收：回答会改变掌握状态和下次复习时间，重复请求不会重复计数。
 
 ### 阶段 3：反馈、打卡与 PWA
 
-- 学习看板；
-- 打卡日历；
-- 埋点；
-- PWA 安装；
-- 学习包缓存和离线同步队列。
+- 学习看板（已落地 summary/trends API 与 `/dashboard` 第一版）；
+- 打卡日历（已落地 `Checkin` 模型、打卡 API 与 `/checkin` 第一版）；
+- 学习包缓存（已落地已打开会话的 IndexedDB 缓存和服务端失败 fallback）；
+- 离线同步队列（已落地作答提交失败入队、待同步提示、阻止完成、手动同步和 online 自动同步第一版）；
+- PWA 安装/更新提示（已落地 `beforeinstallprompt` 安装入口和 Service Worker 更新提示第一版）；
+- 同步进度中心（已落地待同步数量、可同步数量、下次重试、最后错误和手动同步入口）；
+- 埋点（已落地 analytics contracts、API 持久化、PWA/offline 关键事件、本地失败队列、批量 flush 和 summary 查询第一版）；
+- Service Worker Background Sync（已落地 sync tag 注册、Workbox SW 消息转发和客户端渐进增强同步第一版）。
 
-验收：可在手机浏览器安装；短时断网后可继续已开始会话并在恢复网络后同步。
+阶段 3 第一版验收：完成学习会话后可打卡，重复打卡幂等，学习看板展示今日会话、词库进度、累计作答和连续打卡。
+阶段 3 离线缓存第一版验收：已打开的学习会话写入 IndexedDB，服务端请求失败时可从本地缓存恢复展示，并明确提示仍需联网同步作答。
+阶段 3 离线写队列第一版验收：作答提交失败会写入本地待同步队列，页面明确显示“作答待同步”，恢复网络后使用原始幂等键同步，成功前不能完成会话。
+阶段 3 自动同步第一版验收：应用启动或恢复在线时会自动同步已到重试时间的离线作答，失败会记录重试元数据，鉴权失效会暂停并提示重新登录。
+阶段 3 PWA 生命周期第一版验收：支持浏览器安装入口、新版本提示和按路由懒加载后的页面导航，生产构建不再出现大于 500KB 的 chunk 警告。
+阶段 3 同步中心与埋点第一版验收：断网作答后显示同步中心，PWA/offline 关键事件可通过 `/api/v1/analytics/events` 幂等写入，发送失败时进入本地埋点队列。
+阶段 3 Background Sync 与指标第一版验收：支持浏览器会注册后台同步标签，Service Worker 收到 sync 后通知客户端 flush analytics/review 队列，`/api/v1/analytics/summary` 可返回不含原始属性的聚合指标。
+完整 Stage 3 验收：可在手机浏览器安装；短时断网后可继续已开始会话并在恢复网络后同步。
 
 ### 阶段 4：上线准备
 
 - 性能和可访问性检查；
-- 安全、限流和日志脱敏；
-- 内容导入校验；
-- 数据备份和恢复演练；
-- staging 端到端验收；
-- 隐私政策、用户协议和注销流程。
+- 安全、限流和日志脱敏（已落地 API redaction、cookie helper 和认证接口限流第一版）；
+- 内容导入校验（已落地 `scripts/import-vocabulary` 校验器和 `vocabulary:*` 根命令第一版）；
+- 发布准备检查（已落地 `pnpm release:check`，检查根命令和 Stage 4 文档门禁）；
+- 本地构建审计（已落地 `pnpm release:audit`，检查 gzip 预算、lazy chunk、PWA manifest 和基础可访问性 CSS）；
+- 数据备份和恢复演练（已落地演练命令与结构化验收证据门禁）；
+- staging 端到端验收（已落地验收证据门禁，外部 staging URL 接入后执行）；
+- 隐私政策、用户协议和注销流程（已落地 Web 入口和 `DELETE /api/v1/me` 第一版）。
+
+阶段 4 发布准备工具链第一版验收：`pnpm release:check` 能确认根命令、性能/可访问性、安全、内容导入校验和 staging
+门禁存在；`pnpm vocabulary:validate` 能拒绝缺字段、重复 lemma、非 HTTPS 资源和无来源内容。
+
+阶段 4 发布验收第二批验收：`pnpm release:check` 还会确认备份恢复、隐私政策、用户协议、账号注销和
+`scripts/release-readiness/fixtures/stage4-acceptance.json` 中的性能、可访问性、staging、合规入口证据；
+Web 端可访问 `/privacy`、`/terms` 和 `/account/delete`，API `DELETE /api/v1/me` 可删除当前账号并使原 access token
+失效。
+
+阶段 4 发布验收第三批验收：`pnpm build` 生成生产包后，`pnpm release:audit` 能检查首屏 JS gzip 预算、
+单 chunk gzip 预算、`LegalPage`、`AccountDeletionPage`、`StudySessionPage` 等关键 lazy chunk、PWA manifest、
+`focus-visible` 和 `prefers-reduced-motion` 基础无障碍门禁。
 
 验收：关键端到端用例通过，无高危安全问题，核心指标事件可查询。
 

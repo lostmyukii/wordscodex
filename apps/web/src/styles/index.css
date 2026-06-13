@@ -559,6 +559,23 @@ input:focus-visible {
   gap: 14px;
 }
 
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.action-row .secondary-action {
+  width: auto;
+  padding: 0 22px;
+  text-decoration: none;
+}
+
+.action-row.compact {
+  margin-top: -8px;
+}
+
 .task-card {
   display: flex;
   gap: 16px;
@@ -742,6 +759,57 @@ input:focus-visible {
   color: #254b20;
 }
 
+.checkin-day-list {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.checkin-day {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dce3d4;
+  border-radius: 14px;
+  color: #586174;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.checkin-day.checked {
+  border-color: #c9ddbd;
+  color: #254b20;
+  background: #eff7ea;
+}
+
+.dashboard-progress-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #dce3d4;
+  border-radius: 20px;
+  padding: 18px;
+  background: #f8fbf4;
+}
+
+.dashboard-progress-card div {
+  display: grid;
+  gap: 6px;
+}
+
+.dashboard-progress-card strong {
+  color: #172032;
+  font-size: 20px;
+}
+
+.dashboard-progress-card span,
+.dashboard-progress-card p {
+  margin: 0;
+  color: #586174;
+  line-height: 1.7;
+}
+
 .result-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -807,6 +875,225 @@ input:focus-visible {
   text-align: right;
 }
 
+.sync-status {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 20;
+  max-width: min(360px, calc(100vw - 32px));
+  border: 1px solid #dce3d4;
+  border-radius: 18px;
+  padding: 12px 16px;
+  color: #172032;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgba(23, 32, 50, 0.16);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.sync-status.success {
+  border-color: #c9dfbc;
+  color: #254b20;
+  background: #eff7ea;
+}
+
+.sync-status.warning {
+  border-color: #f1d1a8;
+  color: #744a16;
+  background: #fff6e8;
+}
+
+.pwa-status {
+  position: fixed;
+  right: 18px;
+  bottom: 96px;
+  z-index: 20;
+  display: grid;
+  gap: 10px;
+  max-width: min(380px, calc(100vw - 32px));
+}
+
+.pwa-status section {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #dce3d4;
+  border-radius: 18px;
+  padding: 14px 16px;
+  color: #172032;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgba(23, 32, 50, 0.16);
+}
+
+.pwa-status strong,
+.pwa-status p {
+  margin: 0;
+}
+
+.pwa-status strong {
+  font-size: 15px;
+}
+
+.pwa-status p {
+  color: #586174;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.pwa-status .secondary-action {
+  min-height: 44px;
+}
+
+.sync-center {
+  position: fixed;
+  right: 18px;
+  bottom: 196px;
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  max-width: min(380px, calc(100vw - 32px));
+  border: 1px solid #dce3d4;
+  border-radius: 18px;
+  padding: 14px 16px;
+  color: #172032;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgba(23, 32, 50, 0.16);
+}
+
+.sync-center strong,
+.sync-center p {
+  margin: 0;
+}
+
+.sync-center strong {
+  font-size: 15px;
+}
+
+.sync-center p {
+  color: #586174;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.sync-center .secondary-action {
+  min-height: 44px;
+}
+
+.legal-shell {
+  min-height: 100vh;
+  padding: clamp(18px, 5vw, 56px);
+  background:
+    radial-gradient(circle at 12% 16%, rgb(214 230 196 / 68%), transparent 32%),
+    radial-gradient(circle at 86% 82%, rgb(244 222 168 / 46%), transparent 30%),
+    #f6f8f3;
+}
+
+.legal-card {
+  display: grid;
+  gap: 22px;
+  width: min(100%, 760px);
+  margin: 0 auto;
+  border: 1px solid #dce3d4;
+  border-radius: 28px;
+  padding: clamp(28px, 7vw, 56px);
+  background: rgb(255 255 255 / 95%);
+  box-shadow: 0 24px 72px rgb(46 68 37 / 12%);
+}
+
+.legal-card h1 {
+  font-size: clamp(36px, 8vw, 64px);
+}
+
+.legal-updated {
+  margin: -10px 0 0;
+  color: #647089;
+  font-size: 14px;
+}
+
+.legal-section-list {
+  display: grid;
+  gap: 16px;
+}
+
+.legal-section-list section {
+  border: 1px solid #dce3d4;
+  border-radius: 18px;
+  padding: 18px;
+  background: #fbfcf8;
+}
+
+.legal-section-list h2,
+.legal-section-list p {
+  margin: 0;
+}
+
+.legal-section-list h2 {
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.legal-section-list p {
+  color: #586174;
+  line-height: 1.7;
+}
+
+.legal-actions,
+.legal-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.legal-actions .secondary-action {
+  width: auto;
+}
+
+.legal-link-row {
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.legal-link-row a {
+  min-height: 44px;
+  padding: 10px 12px;
+  color: #335e2b;
+  font-weight: 700;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.danger-card {
+  border-color: #efc7bd;
+}
+
+.danger-action {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #8f2424;
+  border-radius: 999px;
+  padding: 0 24px;
+  color: #ffffff;
+  background: #8f2424;
+  font: inherit;
+  font-weight: 800;
+}
+
+.danger-action::before {
+  content: '确认：';
+}
+
+.danger-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.danger-action:focus-visible {
+  outline: 3px solid #f0bd45;
+  outline-offset: 4px;
+}
+
 @media (max-width: 480px) {
   .app-shell {
     padding: 16px;
@@ -846,6 +1133,16 @@ input:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .checkin-day-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .action-row,
+  .action-row .secondary-action,
+  .action-row .text-link {
+    width: 100%;
+  }
+
   .result-item-card {
     align-items: stretch;
     flex-direction: column;
@@ -854,11 +1151,43 @@ input:focus-visible {
   .result-item-card > div:last-child {
     text-align: left;
   }
+
+  .sync-status {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    max-width: none;
+  }
+
+  .pwa-status {
+    right: 16px;
+    bottom: 96px;
+    left: 16px;
+    max-width: none;
+  }
+
+  .sync-center {
+    right: 16px;
+    bottom: 176px;
+    left: 16px;
+    max-width: none;
+  }
+
+  .legal-actions,
+  .legal-actions .secondary-action {
+    width: 100%;
+  }
+
+  .legal-link-row {
+    align-items: center;
+    flex-direction: column;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .primary-action,
-  .secondary-action {
+  .secondary-action,
+  .danger-action {
     transition: none;
   }
 }

@@ -21,6 +21,7 @@ const redis = createClient({
 
 async function main() {
   try {
+    await prisma.checkin.deleteMany()
     await prisma.studySessionItem.deleteMany()
     await prisma.studySession.deleteMany()
     await prisma.userWordProgress.deleteMany()

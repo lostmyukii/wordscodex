@@ -15,4 +15,13 @@ test('shows a usable mobile product entry', async ({ page }) => {
 
   await expect(action).toBeVisible()
   await expect(action).toHaveAttribute('href', '/login')
+
+  await action.click()
+
+  await expect(page).toHaveURL('/login')
+  await expect(
+    page.getByRole('heading', {
+      name: '开始你的词汇计划',
+    }),
+  ).toBeVisible()
 })

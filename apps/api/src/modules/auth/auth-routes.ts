@@ -1,5 +1,6 @@
 import {
   authSessionResponseSchema,
+  deleteAccountResponseSchema,
   guestLoginRequestSchema,
   requestCodeRequestSchema,
   requestCodeResponseSchema,
@@ -13,16 +14,14 @@ import type {
 } from 'fastify'
 import { ZodError, type ZodType } from 'zod'
 import { HttpError } from '../../shared/http-error.js'
+import {
+  authReadRateLimit,
+  authWriteRateLimit,
+  buildRefreshCookieOptions,
+} from '../../shared/security.js'
 import type { AuthService } from './auth-service.js'
 
 export const refreshCookieName = 'wordscodex_refresh'
-
-const refreshCookieOptions = {
-  httpOnly: true,
-  sameSite: 'lax' as const,
-  path: '/api/v1/auth',
-  maxAge: 30 * 24 * 60 * 60,
-}
 
 type AuthRoutesOptions = {
   authService: AuthService
@@ -94,35 +93,79 @@ export const authRoutes: FastifyPluginCallback<AuthRoutesOptions> = (
     },
   )
 
-  app.post('/auth/refresh', async (request, reply) => {
-    const refreshToken = request.cookies[refreshCookieName]
-    if (!refreshToken) {
-      throw new HttpError(401, 'UNAUTHORIZED', '登录状态已失效，请重新登录。')
-    }
+  app.post(
+    '/auth/refresh',
+    {
+      config: {
+        rateLimit: authWriteRateLimit,
+      },
+    },
+    async (request, reply) => {
+      const refreshToken = request.cookies[refreshCookieName]
+      if (!refreshToken) {
+        throw new HttpError(401, 'UNAUTHORIZED', '登录状态已失效，请重新登录。')
+      }
 
-    const result = await options.authService.refresh({ refreshToken })
+      const result = await options.authService.refresh({ refreshToken })
 
-    setRefreshCookie(reply, result.refreshToken, options.secureCookies)
-    return reply.send(authSessionResponseSchema.parse(result.response))
-  })
+      setRefreshCookie(reply, result.refreshToken, options.secureCookies)
+      return reply.send(authSessionResponseSchema.parse(result.response))
+    },
+  )
 
-  app.post('/auth/logout', async (request, reply) => {
-    await options.authService.logout(request.cookies[refreshCookieName])
+  app.post(
+    '/auth/logout',
+    {
+      config: {
+        rateLimit: authWriteRateLimit,
+      },
+    },
+    async (request, reply) => {
+      await options.authService.logout(request.cookies[refreshCookieName])
 
-    clearRefreshCookie(reply, options.secureCookies)
-    return reply.code(204).send()
-  })
+      clearRefreshCookie(reply, options.secureCookies)
+      return reply.code(204).send()
+    },
+  )
 
-  app.get('/me', async (request) => {
-    const accessToken = extractBearerToken(request)
-    if (!accessToken) {
-      throw new HttpError(401, 'UNAUTHORIZED', '登录状态已失效，请重新登录。')
-    }
+  app.get(
+    '/me',
+    {
+      config: {
+        rateLimit: authReadRateLimit,
+      },
+    },
+    async (request) => {
+      const accessToken = extractBearerToken(request)
+      if (!accessToken) {
+        throw new HttpError(401, 'UNAUTHORIZED', '登录状态已失效，请重新登录。')
+      }
 
-    return userSchema.parse(
-      await options.authService.getCurrentUser(accessToken),
-    )
-  })
+      return userSchema.parse(
+        await options.authService.getCurrentUser(accessToken),
+      )
+    },
+  )
+
+  app.delete(
+    '/me',
+    {
+      config: {
+        rateLimit: authWriteRateLimit,
+      },
+    },
+    async (request, reply) => {
+      const accessToken = extractBearerToken(request)
+      if (!accessToken) {
+        throw new HttpError(401, 'UNAUTHORIZED', '登录状态已失效，请重新登录。')
+      }
+
+      const response = await options.authService.deleteCurrentUser(accessToken)
+
+      clearRefreshCookie(reply, options.secureCookies)
+      return reply.send(deleteAccountResponseSchema.parse(response))
+    },
+  )
 
   done()
 }
@@ -155,15 +198,13 @@ function setRefreshCookie(
   secure: boolean,
 ) {
   reply.setCookie(refreshCookieName, refreshToken, {
-    ...refreshCookieOptions,
-    secure,
+    ...buildRefreshCookieOptions({ secure }),
   })
 }
 
 function clearRefreshCookie(reply: FastifyReply, secure: boolean) {
   reply.setCookie(refreshCookieName, '', {
-    ...refreshCookieOptions,
-    secure,
+    ...buildRefreshCookieOptions({ secure }),
     maxAge: 0,
   })
 }

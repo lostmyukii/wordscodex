@@ -86,9 +86,13 @@ pnpm db:migrate
 pnpm db:seed
 pnpm vocabulary:validate
 pnpm vocabulary:import
+pnpm release:audit
+pnpm release:check
 ```
 
 如果实际脚本与以上不同，必须同步更新 `README.md`、CI 和本文件。
+
+`pnpm release:audit` 会检查 `apps/web/dist` 的 gzip 预算、页面级 lazy chunk、PWA manifest 和基础可访问性 CSS 门禁；`pnpm release:check` 还会读取 `scripts/release-readiness/fixtures/stage4-acceptance.json`。修改性能预算、可访问性、备份恢复、staging 验收或合规入口时，必须同步更新这些脚本、证据文件和 `docs/DEVELOPMENT.md`。
 
 ## 开发原则
 

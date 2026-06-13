@@ -1,0 +1,3 @@
+book_slug,lemma,part_of_speech,definition_zh,phonetic_us,audio_us_url,audio_source,example,example_zh,example_source
+cet4-core,ability,n.,能力；才能,/əˈbɪləti/,https://cdn.example.com/ability.mp3,licensed-audio,Reading improves your ability to learn.,阅读会提升你的学习能力。,seed-example
+cet4-core,absorb,v.,吸收；理解,/əbˈzɔːrb/,,,,,

@@ -104,6 +104,11 @@ export function StudyResultPage({
         <Link className="primary-action" to="/home">
           返回今日任务
         </Link>
+        {result.summary.canCheckIn ? (
+          <Link className="secondary-action" to="/checkin">
+            去打卡
+          </Link>
+        ) : null}
       </section>
     </main>
   )

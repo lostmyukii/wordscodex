@@ -1,24 +1,56 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type {
   ReviewRating,
   StudySession,
+  StudySessionResponse,
   SubmitReviewResponse,
 } from '@wordscodex/contracts'
+import {
+  trackAnalyticsEvent,
+  type TrackAnalyticsEvent,
+} from '../analytics/track-event'
 import { useAuthStore } from '../auth/auth-store'
 import { studyApi, type StudyClient } from './api'
+import { offlineReviewSyncCompletedEventName } from './offline-review-sync'
+import {
+  studySessionCache,
+  type StudySessionCacheClient,
+} from './offline-session-cache'
+import {
+  offlineReviewQueueChangedEventName,
+  offlineReviewQueue,
+  type OfflineReviewQueueClient,
+  type PendingReviewSubmission,
+} from './offline-review-queue'
 
 type StudySessionPageProps = {
   studyApi?: StudyClient
+  sessionCache?: StudySessionCacheClient
+  reviewQueue?: OfflineReviewQueueClient
+  trackEvent?: TrackAnalyticsEvent
 }
 
-type ReviewResultState = SubmitReviewResponse & {
+type SyncedReviewResultState = SubmitReviewResponse & {
+  pendingSync?: false
   restoredFromServer?: boolean
 }
 
+type PendingReviewResultState = {
+  pendingSync: true
+  idempotencyKey: string
+  queuedAt: string
+  lastError: string | null
+}
+
+type ReviewResultState = SyncedReviewResultState | PendingReviewResultState
+
 export function StudySessionPage({
   studyApi: client = studyApi,
+  sessionCache = studySessionCache,
+  reviewQueue = offlineReviewQueue,
+  trackEvent,
 }: StudySessionPageProps) {
   const { sessionId = '' } = useParams()
   const navigate = useNavigate()
@@ -29,10 +61,20 @@ export function StudySessionPage({
   const [localReviewResults, setLocalReviewResults] = useState<
     Map<string, ReviewResultState>
   >(() => new Map())
+  const [isSyncingPendingReviews, setIsSyncingPendingReviews] = useState(false)
+  const [syncPendingReviewsError, setSyncPendingReviewsError] = useState<
+    string | null
+  >(null)
+  const [pendingReviewRefreshKey, setPendingReviewRefreshKey] = useState(0)
   const sessionQuery = useQuery({
     queryKey: ['study-session', sessionId],
     queryFn: () =>
-      client.getSession(sessionId, requireAccessToken(accessToken)),
+      loadStudySession({
+        client,
+        sessionCache,
+        sessionId,
+        accessToken: requireAccessToken(accessToken),
+      }),
     enabled: Boolean(accessToken) && sessionId.length > 0,
   })
   const submitReviewMutation = useMutation({
@@ -46,24 +88,50 @@ export function StudySessionPage({
     }) => {
       const token = requireAccessToken(accessToken)
 
-      return client.submitReview(
+      const idempotencyKey = getIdempotencyKey(
+        idempotencyKeys.current,
         input.session.id,
-        {
-          wordId: input.wordId,
-          questionType: input.questionType,
-          rating: input.rating,
-          isCorrect: input.isCorrect,
-          responseMs: Math.max(1, Date.now() - reviewStartedAtMs.current),
-          answer: input.answer,
-          reviewedAt: new Date().toISOString(),
-        },
-        getIdempotencyKey(
-          idempotencyKeys.current,
-          input.session.id,
-          input.wordId,
-        ),
-        token,
+        input.wordId,
       )
+      const review = {
+        wordId: input.wordId,
+        questionType: input.questionType,
+        rating: input.rating,
+        isCorrect: input.isCorrect,
+        responseMs: Math.max(1, Date.now() - reviewStartedAtMs.current),
+        answer: input.answer,
+        reviewedAt: new Date().toISOString(),
+      }
+      const sendTrackEvent =
+        trackEvent ??
+        ((event) =>
+          trackAnalyticsEvent({
+            ...event,
+            accessToken: token,
+          }).then(() => undefined))
+
+      return client
+        .submitReview(input.session.id, review, idempotencyKey, token)
+        .catch(async (error: unknown) => {
+          const lastError = getErrorMessage(error)
+          const pendingReview = await reviewQueue.enqueue({
+            sessionId: input.session.id,
+            idempotencyKey,
+            review,
+            lastError,
+          })
+          void sendTrackEvent({
+            name: 'offline_queue_created',
+            properties: {
+              pendingCount: 1,
+              retryCount: pendingReview.retryCount,
+              sessionMode: input.session.mode,
+            },
+          }).catch(() => undefined)
+          dispatchOfflineReviewQueueChanged()
+
+          return toPendingReviewResult(pendingReview)
+        })
     },
     onSuccess(result, input) {
       setLocalReviewResults((previous) => {
@@ -82,7 +150,7 @@ export function StudySessionPage({
   })
   const restoredReviewResults = useMemo(() => {
     const nextResults = new Map<string, ReviewResultState>()
-    const response = sessionQuery.data
+    const response = sessionQuery.data?.response
     if (!response) return nextResults
 
     for (const review of response.reviews) {
@@ -101,6 +169,79 @@ export function StudySessionPage({
     }
     return nextResults
   }, [localReviewResults, restoredReviewResults])
+  const pendingReviewCount = useMemo(
+    () =>
+      [...reviewResults.values()].filter((result) => result.pendingSync).length,
+    [reviewResults],
+  )
+
+  useEffect(() => {
+    const response = sessionQuery.data?.response
+    if (!response) return
+
+    let cancelled = false
+    void reviewQueue
+      .listBySession(response.session.id)
+      .then((pendingReviews) => {
+        if (cancelled) return
+        const restoredWordIds = new Set(
+          response.reviews.map((review) => review.wordId),
+        )
+        const pendingReviewKeys = new Set(
+          pendingReviews.map((pendingReview) =>
+            reviewResultKey(
+              pendingReview.sessionId,
+              pendingReview.review.wordId,
+            ),
+          ),
+        )
+        setLocalReviewResults((previous) => {
+          const nextResults = new Map(previous)
+          for (const [key, result] of nextResults) {
+            if (!key.startsWith(`${response.session.id}:`)) continue
+            if (result.pendingSync && !pendingReviewKeys.has(key)) {
+              nextResults.delete(key)
+            }
+          }
+          for (const pendingReview of pendingReviews) {
+            if (restoredWordIds.has(pendingReview.review.wordId)) continue
+            nextResults.set(
+              reviewResultKey(
+                pendingReview.sessionId,
+                pendingReview.review.wordId,
+              ),
+              toPendingReviewResult(pendingReview),
+            )
+          }
+          return nextResults
+        })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [pendingReviewRefreshKey, reviewQueue, sessionQuery.data])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleCompletedSync = () => {
+      setPendingReviewRefreshKey((value) => value + 1)
+      void sessionQuery.refetch()
+    }
+
+    window.addEventListener(
+      offlineReviewSyncCompletedEventName,
+      handleCompletedSync,
+    )
+
+    return () => {
+      window.removeEventListener(
+        offlineReviewSyncCompletedEventName,
+        handleCompletedSync,
+      )
+    }
+  }, [sessionQuery])
 
   if (sessionQuery.isPending) {
     return <p className="route-status">正在加载学习会话…</p>
@@ -121,7 +262,7 @@ export function StudySessionPage({
     )
   }
 
-  const session = sessionQuery.data.session
+  const session = sessionQuery.data.response.session
   const sessionModeLabel = getSessionModeLabel(session.mode)
   const currentItem = session.items[currentIndex]
   const currentReviewResult = currentItem
@@ -145,6 +286,14 @@ export function StudySessionPage({
           {reviewResults.size} 题 ·
           {session.status === 'completed' ? ' 服务端已固化' : ' 当前会话进行中'}
         </p>
+        {sessionQuery.data.restoredFromLocalCache ? (
+          <div className="review-feedback" role="status">
+            <strong>已从本地缓存恢复学习会话</strong>
+            <span>
+              当前显示的是上次已下载的会话；提交作答仍需要联网同步到服务端。
+            </span>
+          </div>
+        ) : null}
 
         {currentItem ? (
           <article className="word-card" aria-label="主动回忆题">
@@ -241,17 +390,34 @@ export function StudySessionPage({
             ) : null}
             {currentReviewResult ? (
               <div className="review-feedback" role="status">
-                <strong>作答已记录</strong>
-                <span>
-                  下次复习：
-                  {formatDateKey(currentReviewResult.progress.nextReviewAt)}
-                </span>
-                {currentReviewResult.alreadyProcessed ? (
-                  <span>这次提交已去重，没有重复累计学习次数。</span>
-                ) : null}
-                {currentReviewResult.restoredFromServer ? (
-                  <span>已从服务端恢复作答记录，可继续完成会话。</span>
-                ) : null}
+                <strong>
+                  {currentReviewResult.pendingSync
+                    ? '作答待同步'
+                    : '作答已记录'}
+                </strong>
+                {currentReviewResult.pendingSync ? (
+                  <>
+                    <span>
+                      已写入本地待同步队列，恢复网络后会用同一个提交键同步。
+                    </span>
+                    {currentReviewResult.lastError ? (
+                      <span>上次错误：{currentReviewResult.lastError}</span>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      下次复习：
+                      {formatDateKey(currentReviewResult.progress.nextReviewAt)}
+                    </span>
+                    {currentReviewResult.alreadyProcessed ? (
+                      <span>这次提交已去重，没有重复累计学习次数。</span>
+                    ) : null}
+                    {currentReviewResult.restoredFromServer ? (
+                      <span>已从服务端恢复作答记录，可继续完成会话。</span>
+                    ) : null}
+                  </>
+                )}
               </div>
             ) : null}
             {completeSessionMutation.isError ? (
@@ -288,7 +454,24 @@ export function StudySessionPage({
                 ) : null}
               </>
             ) : null}
-            {allItemsAnswered ? (
+            {allItemsAnswered && pendingReviewCount > 0 ? (
+              <div className="review-feedback" role="status">
+                <strong>还有 {pendingReviewCount} 条作答待同步</strong>
+                <span>同步成功后才能完成会话并写入服务端学习结果。</span>
+                <button
+                  className="primary-action"
+                  disabled={isSyncingPendingReviews}
+                  type="button"
+                  onClick={() => void syncPendingReviews(session)}
+                >
+                  同步待提交作答
+                </button>
+                {syncPendingReviewsError ? (
+                  <span>{syncPendingReviewsError}</span>
+                ) : null}
+              </div>
+            ) : null}
+            {allItemsAnswered && pendingReviewCount === 0 ? (
               <>
                 <button
                   className="primary-action"
@@ -323,6 +506,98 @@ export function StudySessionPage({
     setCurrentIndex((value) => Math.min(value + 1, session.items.length - 1))
     reviewStartedAtMs.current = Date.now()
   }
+
+  async function syncPendingReviews(session: StudySession) {
+    setIsSyncingPendingReviews(true)
+    setSyncPendingReviewsError(null)
+
+    try {
+      const token = requireAccessToken(accessToken)
+      const pendingReviews = await reviewQueue.listBySession(session.id)
+
+      for (const pendingReview of pendingReviews) {
+        try {
+          const result = await client.submitReview(
+            pendingReview.sessionId,
+            pendingReview.review,
+            pendingReview.idempotencyKey,
+            token,
+          )
+          await reviewQueue.markSynced(pendingReview.idempotencyKey)
+          setLocalReviewResults((previous) => {
+            const nextResults = new Map(previous)
+            nextResults.set(
+              reviewResultKey(
+                pendingReview.sessionId,
+                pendingReview.review.wordId,
+              ),
+              result,
+            )
+            return nextResults
+          })
+        } catch (error) {
+          const message = getErrorMessage(error)
+          await reviewQueue.markFailed(pendingReview.idempotencyKey, message)
+          setLocalReviewResults((previous) => {
+            const nextResults = new Map(previous)
+            nextResults.set(
+              reviewResultKey(
+                pendingReview.sessionId,
+                pendingReview.review.wordId,
+              ),
+              {
+                ...toPendingReviewResult(pendingReview),
+                lastError: message,
+              },
+            )
+            return nextResults
+          })
+          throw error
+        }
+      }
+    } catch (error) {
+      setSyncPendingReviewsError(getErrorMessage(error))
+    } finally {
+      setIsSyncingPendingReviews(false)
+    }
+  }
+}
+
+async function loadStudySession(input: {
+  client: StudyClient
+  sessionCache: StudySessionCacheClient
+  sessionId: string
+  accessToken: string
+}): Promise<{
+  response: StudySessionResponse
+  restoredFromLocalCache: boolean
+}> {
+  try {
+    const response = await input.client.getSession(
+      input.sessionId,
+      input.accessToken,
+    )
+    await input.sessionCache.clearExpired().catch(() => undefined)
+    await input.sessionCache.save(response).catch(() => undefined)
+
+    return {
+      response,
+      restoredFromLocalCache: false,
+    }
+  } catch (error) {
+    const cachedResponse = await input.sessionCache
+      .load(input.sessionId)
+      .catch(() => null)
+
+    if (cachedResponse) {
+      return {
+        response: cachedResponse,
+        restoredFromLocalCache: true,
+      }
+    }
+
+    throw error
+  }
 }
 
 function uniquePhonetics(...values: Array<string | null>) {
@@ -351,6 +626,11 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : '操作失败，请稍后重试。'
 }
 
+function dispatchOfflineReviewQueueChanged() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(offlineReviewQueueChangedEventName))
+}
+
 function getIdempotencyKey(
   idempotencyKeys: Map<string, string>,
   sessionId: string,
@@ -367,6 +647,17 @@ function getIdempotencyKey(
 
 function reviewResultKey(sessionId: string, wordId: string) {
   return `${sessionId}:${wordId}`
+}
+
+function toPendingReviewResult(
+  pendingReview: PendingReviewSubmission,
+): PendingReviewResultState {
+  return {
+    pendingSync: true,
+    idempotencyKey: pendingReview.idempotencyKey,
+    queuedAt: pendingReview.createdAt,
+    lastError: pendingReview.lastError,
+  }
 }
 
 function createRandomId() {

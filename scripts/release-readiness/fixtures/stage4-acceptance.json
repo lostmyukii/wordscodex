@@ -1,0 +1,64 @@
+{
+  "updatedAt": "2026-06-13T15:32:26.325Z",
+  "scope": "Stage 4 launch-readiness gates for MVP local/staging handoff",
+  "performance": {
+    "mobileLcpBudgetMs": 2500,
+    "initialJsGzipBudgetKb": 250,
+    "routeLazyLoadingChecked": true,
+    "remoteInitialJsGzipKb": 152.8,
+    "remoteMaxChunkGzipKb": 99.5,
+    "lighthouse": {
+      "url": "http://192.144.129.104:18080/",
+      "measuredAt": "2026-06-13T15:32:26.325Z",
+      "performanceScore": 97,
+      "accessibilityScore": 100,
+      "bestPracticesScore": 74,
+      "seoScore": 100,
+      "largestContentfulPaintMs": 2300,
+      "firstContentfulPaintMs": 1900,
+      "totalBlockingTimeMs": 0,
+      "cumulativeLayoutShift": 0
+    },
+    "notes": "Staging Nginx serves hashed assets with gzip and immutable cache headers. HTTP-only staging still lowers the Lighthouse best-practices score because HTTPS redirection is intentionally not enabled on the standalone port."
+  },
+  "accessibility": {
+    "wcagAaContrastChecked": true,
+    "keyboardNavigationChecked": true,
+    "reducedMotionChecked": true,
+    "keyboardSmoke": {
+      "viewport": "390x844",
+      "focusableEntries": ["开始学习", "隐私政策", "用户协议"],
+      "visibleFocusChecked": true
+    },
+    "notes": "Core routes expose headings, keyboard reachable actions, non-color-only feedback, reduced motion CSS, and mobile keyboard focus smoke evidence."
+  },
+  "backupRestore": {
+    "backupCommandDocumented": true,
+    "restoreCommandDocumented": true,
+    "drillRequiredBeforeProduction": true,
+    "drillExecutedAt": "2026-06-13T15:25:00.000Z",
+    "restoredCounts": {
+      "vocabularyBooks": 3,
+      "vocabularyWords": 5
+    },
+    "temporaryRestoreDatabaseDropped": true,
+    "notes": "Staging pg_dump was restored into wordscodex_restore_drill, migrations were checked, restored counts were read, and the temporary restore database was dropped."
+  },
+  "staging": {
+    "newUserE2eReady": true,
+    "returningUserReviewReady": true,
+    "mobileSpellingReady": true,
+    "externalUrl": "http://192.144.129.104:18080/",
+    "singlePublicPort": 18080,
+    "apiHealthChecked": true,
+    "guestSmokeChecked": true,
+    "emailCodeSmokeChecked": true,
+    "vocabularyBooksChecked": 3,
+    "notes": "External staging is deployed on a standalone public port. Web, PWA manifest, API health, guest auth, deterministic email-code auth, and vocabulary seed data were verified through the public URL."
+  },
+  "legal": {
+    "privacyRoute": "/privacy",
+    "termsRoute": "/terms",
+    "accountDeletionRoute": "/account/delete"
+  }
+}

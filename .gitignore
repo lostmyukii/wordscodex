@@ -6,6 +6,8 @@
 node_modules/
 dist/
 coverage/
+tmp/
+dump.rdb
 playwright-report/
 test-results/
 apps/api/generated/
