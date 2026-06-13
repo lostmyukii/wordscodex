@@ -21,9 +21,10 @@ test('logs in with an email verification code on mobile', async ({
   await expect(page).toHaveURL('/onboarding')
   await expect(
     page.getByRole('heading', {
-      name: '开始制定学习计划',
+      name: '还没有选择词库',
     }),
   ).toBeVisible()
+  await expect(page.getByRole('link', { name: '选择词库' })).toBeVisible()
 })
 
 test('starts as a guest on mobile', async ({ page }) => {
@@ -34,7 +35,8 @@ test('starts as a guest on mobile', async ({ page }) => {
   await expect(page).toHaveURL('/onboarding')
   await expect(
     page.getByRole('heading', {
-      name: '开始制定学习计划',
+      name: '还没有选择词库',
     }),
   ).toBeVisible()
+  await expect(page.getByRole('link', { name: '选择词库' })).toBeVisible()
 })

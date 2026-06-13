@@ -242,6 +242,88 @@ input:focus-visible {
     #f6f8f3;
 }
 
+.onboarding-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 18% 12%, rgb(214 230 196 / 72%), transparent 32%),
+    radial-gradient(circle at 82% 88%, rgb(244 222 168 / 50%), transparent 30%),
+    #f6f8f3;
+}
+
+.plan-card {
+  width: min(100%, 620px);
+  border: 1px solid #dce3d4;
+  border-radius: 28px;
+  padding: clamp(28px, 7vw, 48px);
+  background: rgb(255 255 255 / 95%);
+  box-shadow: 0 24px 72px rgb(46 68 37 / 12%);
+}
+
+.plan-card h1 {
+  font-size: clamp(36px, 9vw, 64px);
+}
+
+.selected-book-card {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 24px;
+  border: 1px solid #dce3d4;
+  border-radius: 20px;
+  padding: 16px;
+  background: #f8fbf4;
+}
+
+.selected-book-card span {
+  color: #52743d;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.selected-book-card strong {
+  color: #172032;
+  font-size: 20px;
+}
+
+.selected-book-card p {
+  margin: 0;
+  color: #586174;
+}
+
+.plan-form {
+  display: grid;
+  gap: 18px;
+}
+
+.form-field select {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid #cbd6c0;
+  border-radius: 16px;
+  padding: 0 14px;
+  color: #172032;
+  background: #ffffff;
+  font: inherit;
+}
+
+.checkbox-field {
+  display: flex;
+  min-height: 48px;
+  gap: 12px;
+  align-items: center;
+  color: #172032;
+  font-weight: 700;
+}
+
+.checkbox-field input {
+  width: 20px;
+  height: 20px;
+  accent-color: #335e2b;
+}
+
 .book-hero,
 .book-list-panel,
 .book-detail-card,

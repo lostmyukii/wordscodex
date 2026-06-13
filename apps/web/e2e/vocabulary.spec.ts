@@ -27,4 +27,19 @@ test('selects a vocabulary book on mobile', async ({ page }) => {
   await expect(
     page.getByRole('link', { name: '选择这个词库' }),
   ).toHaveAttribute('href', '/onboarding?book=cet4-core')
+
+  await page.getByRole('link', { name: '选择这个词库' }).click()
+
+  await expect(page).toHaveURL('/onboarding?book=cet4-core')
+  await expect(
+    page.getByRole('heading', { name: '生成你的学习计划' }),
+  ).toBeVisible()
+  await expect(page.getByText('大学英语四级核心词汇')).toBeVisible()
+
+  await page.getByLabel('每日新词量').fill('50')
+  await page.getByLabel('开启学习提醒').check()
+  await page.getByRole('button', { name: '生成学习计划' }).click()
+
+  await expect(page).toHaveURL('/home')
+  await expect(page.getByRole('heading', { name: '今日任务' })).toBeVisible()
 })

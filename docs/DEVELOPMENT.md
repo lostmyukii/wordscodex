@@ -319,11 +319,15 @@ type StudyPlan = {
   id: string
   userId: string
   vocabularyBookId: string
+  learningGoal: 'k12' | 'college' | 'postgraduate' | 'overseas' | 'workplace'
   dailyNewWordTarget: number
   dailyReviewLimit: number
   targetDate: string | null
+  reminderEnabled: boolean
   status: 'active' | 'paused' | 'completed'
   startedAt: string
+  createdAt: string
+  updatedAt: string
 }
 ```
 
@@ -509,6 +513,9 @@ PATCH  /api/v1/study-plans/:planId
 `GET /api/v1/vocabulary-books` 返回已发布词库，支持可选查询参数 `q`，按词库名称、slug 和描述做基础搜索。
 `GET /api/v1/vocabulary-books/:bookId` 支持使用 `id` 或 `slug` 获取详情；不存在时返回标准错误码 `NOT_FOUND`。
 前端 `/books` 与 `/books/:bookId` 页面必须通过 `packages/contracts` 的词库 Schema 校验响应，并处理加载、空数据、错误和重试状态。
+`POST /api/v1/study-plans` 需要 Bearer access token，请求包含 `vocabularyBookId`、`learningGoal`、
+`dailyNewWordTarget`、可选 `targetDate` 和 `reminderEnabled`；未提供 `targetDate` 时服务端根据词库词数和每日新词量估算。
+每个用户只能有一个 `active` 计划，重复创建返回 `ACTIVE_STUDY_PLAN_EXISTS`。
 
 #### 今日任务与学习
 

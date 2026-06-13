@@ -21,6 +21,7 @@ const redis = createClient({
 
 async function main() {
   try {
+    await prisma.studyPlan.deleteMany()
     await prisma.authSession.deleteMany()
     await prisma.user.deleteMany()
     const publishedAt = new Date('2026-06-12T00:00:00.000Z')

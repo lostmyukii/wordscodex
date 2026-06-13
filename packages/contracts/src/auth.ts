@@ -47,7 +47,11 @@ export const authSessionResponseSchema = z.object({
 })
 
 export const authErrorCodeSchema = z.enum(authErrorCodes)
-export const apiErrorCodeSchema = z.enum([...authErrorCodes, 'NOT_FOUND'])
+export const apiErrorCodeSchema = z.enum([
+  ...authErrorCodes,
+  'NOT_FOUND',
+  'ACTIVE_STUDY_PLAN_EXISTS',
+])
 
 export const errorResponseSchema = z.object({
   error: z.object({

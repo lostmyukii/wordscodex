@@ -20,6 +20,11 @@ import { PrismaAuthRepository } from './modules/auth/auth-repository.js'
 import { authRoutes } from './modules/auth/auth-routes.js'
 import { RedisVerificationCodeStore } from './modules/auth/redis-code-store.js'
 import { TokenService } from './modules/auth/token-service.js'
+import { PrismaStudyPlanRepository } from './modules/study-plans/study-plan-repository.js'
+import {
+  studyPlanRoutes,
+  type StudyPlanRepository,
+} from './modules/study-plans/study-plan-routes.js'
 import { PrismaVocabularyRepository } from './modules/vocabulary/vocabulary-repository.js'
 import {
   vocabularyRoutes,
@@ -45,6 +50,8 @@ export type BuildAppOptions = {
   prismaClient?: PrismaClient
   redisClient?: RedisClientType
   vocabularyRepository?: VocabularyRepository
+  studyPlanRepository?: StudyPlanRepository
+  clock?: () => Date
 }
 
 export function buildApp(options: BuildAppOptions = {}) {
@@ -59,6 +66,10 @@ export function buildApp(options: BuildAppOptions = {}) {
   const vocabularyRepository =
     options.vocabularyRepository ??
     (prismaClient ? new PrismaVocabularyRepository(prismaClient) : undefined)
+  const studyPlanRepository =
+    options.studyPlanRepository ??
+    (prismaClient ? new PrismaStudyPlanRepository(prismaClient) : undefined)
+  const clock = options.clock ?? (() => new Date())
 
   void app.register(cors, {
     origin: config.webOrigin,
@@ -80,6 +91,14 @@ export function buildApp(options: BuildAppOptions = {}) {
     void app.register(vocabularyRoutes, {
       prefix: '/api/v1',
       vocabularyRepository,
+    })
+  }
+  if (studyPlanRepository) {
+    void app.register(studyPlanRoutes, {
+      prefix: '/api/v1',
+      authService,
+      studyPlanRepository,
+      clock,
     })
   }
 

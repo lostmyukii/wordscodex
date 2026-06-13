@@ -25,6 +25,20 @@ enum VocabularyCategory {
   workplace
 }
 
+enum LearningGoal {
+  k12
+  college
+  postgraduate
+  overseas
+  workplace
+}
+
+enum StudyPlanStatus {
+  active
+  paused
+  completed
+}
+
 model SystemMetadata {
   key       String   @id
   value     String
@@ -40,6 +54,7 @@ model User {
   accountType AccountType   @default(guest)
   timezone    String        @default("Asia/Shanghai")
   sessions    AuthSession[]
+  studyPlans  StudyPlan[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
@@ -67,9 +82,31 @@ model VocabularyBook {
   wordCount   Int
   version     Int                @default(1)
   publishedAt DateTime?
+  studyPlans  StudyPlan[]
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
   @@index([category])
   @@index([publishedAt])
+}
+
+model StudyPlan {
+  id                 String          @id @default(cuid())
+  userId             String
+  vocabularyBookId   String
+  learningGoal       LearningGoal
+  dailyNewWordTarget Int
+  dailyReviewLimit   Int             @default(80)
+  targetDate         DateTime?
+  reminderEnabled    Boolean         @default(false)
+  status             StudyPlanStatus @default(active)
+  startedAt          DateTime        @default(now())
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vocabularyBook     VocabularyBook  @relation(fields: [vocabularyBookId], references: [id], onDelete: Restrict)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([vocabularyBookId])
+  @@index([status])
 }

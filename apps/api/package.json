@@ -21,6 +21,7 @@
     "@prisma/adapter-pg": "7.8.0",
     "@prisma/client": "7.8.0",
     "@wordscodex/contracts": "workspace:*",
+    "@wordscodex/domain": "workspace:*",
     "dotenv": "17.4.2",
     "fastify": "5.8.5",
     "jose": "6.2.3",

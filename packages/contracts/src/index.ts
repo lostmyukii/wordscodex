@@ -20,6 +20,20 @@ export {
 } from './auth.js'
 export { healthResponseSchema, type HealthResponse } from './health.js'
 export {
+  activeStudyPlanResponseSchema,
+  createStudyPlanRequestSchema,
+  learningGoalSchema,
+  studyPlanResponseSchema,
+  studyPlanSchema,
+  studyPlanStatusSchema,
+  type ActiveStudyPlanResponse,
+  type CreateStudyPlanRequest,
+  type LearningGoal,
+  type StudyPlan,
+  type StudyPlanResponse,
+  type StudyPlanStatus,
+} from './study-plan.js'
+export {
   vocabularyBookDetailResponseSchema,
   vocabularyBookListResponseSchema,
   vocabularyBookSchema,
