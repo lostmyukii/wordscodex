@@ -3,6 +3,7 @@ import { App } from './App'
 import { LoginPage } from '../features/auth/LoginPage'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { HomePage } from '../features/home/HomePage'
+import { MistakesPage } from '../features/mistakes/MistakesPage'
 import { OnboardingEntryPage } from '../features/onboarding/OnboardingEntryPage'
 import { StudyResultPage } from '../features/study/StudyResultPage'
 import { StudySessionPage } from '../features/study/StudySessionPage'
@@ -29,6 +30,10 @@ export function createAppRouter() {
         {
           path: '/home',
           element: <HomePage />,
+        },
+        {
+          path: '/mistakes',
+          element: <MistakesPage />,
         },
         {
           path: '/study/session/:sessionId',

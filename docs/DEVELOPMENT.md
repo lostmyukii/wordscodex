@@ -542,6 +542,11 @@ GET    /api/v1/study-sessions/:sessionId/result
 `到期复习`、`混合学习` 和 `错词强化` 等会话类型。错词本页面、消灭模式和离线会话恢复仍属于后续 Stage 2
 任务。
 
+当前 Stage 2 也已落地错词本第一版：`GET /api/v1/mistakes` 返回当前 active 计划词库内的
+`fuzzy`、`mistake` 和 `lapsed` 单词，`POST /api/v1/mistakes/session` 可创建
+`mistake_drill` 强化会话。前端 `/mistakes` 页面支持加载、空状态、错误重试、无计划引导和开始错词强化。
+连续正确后从错词本降级或移除、错词追加不同题型、离线会话恢复仍属于后续 Stage 2 任务。
+
 创建会话请求：
 
 ```json
@@ -835,7 +840,7 @@ OBJECT_STORAGE_SECRET_KEY
 
 - SRS v1（已落地基础调度、掌握状态转换和幂等 ReviewLog）；
 - 到期复习队列（已落地 active 计划词库过滤、优先级排序和 review/mixed 会话创建）；
-- 错词本和消灭模式；
+- 错词本和消灭模式（已落地错词列表与 `mistake_drill` 会话创建，移除规则待补）；
 - 幂等学习记录；
 - 学习会话恢复。
 

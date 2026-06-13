@@ -20,6 +20,16 @@ export {
 } from './auth.js'
 export { healthResponseSchema, type HealthResponse } from './health.js'
 export {
+  createMistakeDrillSessionRequestSchema,
+  mistakeListItemSchema,
+  mistakeListResponseSchema,
+  mistakeMasteryStateSchema,
+  type CreateMistakeDrillSessionRequest,
+  type MistakeListItem,
+  type MistakeListResponse,
+  type MistakeMasteryState,
+} from './mistakes.js'
+export {
   activeStudyPlanResponseSchema,
   createStudyPlanRequestSchema,
   learningGoalSchema,

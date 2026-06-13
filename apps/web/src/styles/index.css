@@ -593,6 +593,51 @@ input:focus-visible {
   font-size: 22px;
 }
 
+.mistake-list {
+  display: grid;
+  gap: 14px;
+  margin: 24px 0;
+}
+
+.mistake-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #dce3d4;
+  border-radius: 22px;
+  padding: 18px;
+  background: #ffffff;
+}
+
+.mistake-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mistake-title-row h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.mistake-card p {
+  margin: 8px 0 0;
+  color: #586174;
+}
+
+.state-badge {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  border: 1px solid #f0d7a4;
+  border-radius: 999px;
+  padding: 0 12px;
+  color: #7a4c00;
+  background: #fff7e4;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .empty-note {
   border: 1px solid #dce3d4;
   border-radius: 20px;

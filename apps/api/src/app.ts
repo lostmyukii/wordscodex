@@ -18,6 +18,11 @@ import {
 } from './modules/auth/auth-service.js'
 import { PrismaAuthRepository } from './modules/auth/auth-repository.js'
 import { authRoutes } from './modules/auth/auth-routes.js'
+import { PrismaMistakeRepository } from './modules/mistakes/mistake-repository.js'
+import {
+  mistakeRoutes,
+  type MistakeRepository,
+} from './modules/mistakes/mistake-routes.js'
 import { RedisVerificationCodeStore } from './modules/auth/redis-code-store.js'
 import { TokenService } from './modules/auth/token-service.js'
 import { PrismaStudyPlanRepository } from './modules/study-plans/study-plan-repository.js'
@@ -57,6 +62,7 @@ export type BuildAppOptions = {
   vocabularyRepository?: VocabularyRepository
   studyPlanRepository?: StudyPlanRepository
   studySessionRepository?: StudySessionRepository
+  mistakeRepository?: MistakeRepository
   clock?: () => Date
 }
 
@@ -78,6 +84,9 @@ export function buildApp(options: BuildAppOptions = {}) {
   const studySessionRepository =
     options.studySessionRepository ??
     (prismaClient ? new PrismaStudySessionRepository(prismaClient) : undefined)
+  const mistakeRepository =
+    options.mistakeRepository ??
+    (prismaClient ? new PrismaMistakeRepository(prismaClient) : undefined)
   const clock = options.clock ?? (() => new Date())
 
   void app.register(cors, {
@@ -115,6 +124,14 @@ export function buildApp(options: BuildAppOptions = {}) {
       prefix: '/api/v1',
       authService,
       studySessionRepository,
+      clock,
+    })
+  }
+  if (mistakeRepository) {
+    void app.register(mistakeRoutes, {
+      prefix: '/api/v1',
+      authService,
+      mistakeRepository,
       clock,
     })
   }
