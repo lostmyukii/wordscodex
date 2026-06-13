@@ -2,7 +2,7 @@ import {
   authSessionResponseSchema,
   errorResponseSchema,
   requestCodeResponseSchema,
-  type AuthErrorCode,
+  type ApiErrorCode,
   type AuthSessionResponse,
 } from '@wordscodex/contracts'
 
@@ -14,7 +14,7 @@ const apiOrigin =
 
 export class AuthApiError extends Error {
   constructor(
-    readonly code: AuthErrorCode,
+    readonly code: ApiErrorCode,
     message: string,
   ) {
     super(message)

@@ -1,6 +1,14 @@
 import { z } from 'zod'
 
 const emailSchema = z.string().trim().toLowerCase().email().max(254)
+const authErrorCodes = [
+  'VALIDATION_FAILED',
+  'AUTH_CODE_RATE_LIMITED',
+  'AUTH_CODE_INVALID',
+  'AUTH_CODE_ATTEMPTS_EXCEEDED',
+  'ACCOUNT_EMAIL_IN_USE',
+  'UNAUTHORIZED',
+] as const
 
 export const userSchema = z.object({
   id: z.string().min(1),
@@ -38,18 +46,12 @@ export const authSessionResponseSchema = z.object({
   user: userSchema,
 })
 
-export const authErrorCodeSchema = z.enum([
-  'VALIDATION_FAILED',
-  'AUTH_CODE_RATE_LIMITED',
-  'AUTH_CODE_INVALID',
-  'AUTH_CODE_ATTEMPTS_EXCEEDED',
-  'ACCOUNT_EMAIL_IN_USE',
-  'UNAUTHORIZED',
-])
+export const authErrorCodeSchema = z.enum(authErrorCodes)
+export const apiErrorCodeSchema = z.enum([...authErrorCodes, 'NOT_FOUND'])
 
 export const errorResponseSchema = z.object({
   error: z.object({
-    code: authErrorCodeSchema,
+    code: apiErrorCodeSchema,
     message: z.string().min(1),
     requestId: z.string().min(1),
   }),
@@ -62,4 +64,5 @@ export type VerifyCodeRequest = z.infer<typeof verifyCodeRequestSchema>
 export type GuestLoginRequest = z.infer<typeof guestLoginRequestSchema>
 export type AuthSessionResponse = z.infer<typeof authSessionResponseSchema>
 export type AuthErrorCode = z.infer<typeof authErrorCodeSchema>
+export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>
 export type ErrorResponse = z.infer<typeof errorResponseSchema>

@@ -23,6 +23,47 @@ async function main() {
   try {
     await prisma.authSession.deleteMany()
     await prisma.user.deleteMany()
+    const publishedAt = new Date('2026-06-12T00:00:00.000Z')
+    await prisma.vocabularyBook.upsert({
+      where: { slug: 'cet4-core' },
+      update: {
+        name: '大学英语四级核心词汇',
+        category: 'college',
+        description: '覆盖四级高频核心词，适合大学阶段系统备考。',
+        wordCount: 2600,
+        version: 1,
+        publishedAt,
+      },
+      create: {
+        slug: 'cet4-core',
+        name: '大学英语四级核心词汇',
+        category: 'college',
+        description: '覆盖四级高频核心词，适合大学阶段系统备考。',
+        wordCount: 2600,
+        version: 1,
+        publishedAt,
+      },
+    })
+    await prisma.vocabularyBook.upsert({
+      where: { slug: 'workplace-business' },
+      update: {
+        name: '职场商务英语高频词',
+        category: 'workplace',
+        description: '围绕会议、邮件和沟通场景组织的职场词库。',
+        wordCount: 1800,
+        version: 1,
+        publishedAt,
+      },
+      create: {
+        slug: 'workplace-business',
+        name: '职场商务英语高频词',
+        category: 'workplace',
+        description: '围绕会议、邮件和沟通场景组织的职场词库。',
+        wordCount: 1800,
+        version: 1,
+        publishedAt,
+      },
+    })
     await redis.connect()
     await redis.flushDb()
   } finally {

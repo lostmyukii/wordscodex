@@ -283,6 +283,8 @@ type VocabularyBook = {
   wordCount: number
   version: number
   publishedAt: string | null
+  createdAt: string
+  updatedAt: string
 }
 ```
 
@@ -468,8 +470,8 @@ easy:  interval = max(4 天, 旧间隔 × easeFactor × 1.3)
 ```json
 {
   "error": {
-    "code": "STUDY_SESSION_EXPIRED",
-    "message": "当前学习会话已失效，请重新开始。",
+    "code": "NOT_FOUND",
+    "message": "词库不存在。",
     "requestId": "req_123"
   }
 }
@@ -503,6 +505,10 @@ POST   /api/v1/study-plans
 GET    /api/v1/study-plans/active
 PATCH  /api/v1/study-plans/:planId
 ```
+
+`GET /api/v1/vocabulary-books` 返回已发布词库，支持可选查询参数 `q`，按词库名称、slug 和描述做基础搜索。
+`GET /api/v1/vocabulary-books/:bookId` 支持使用 `id` 或 `slug` 获取详情；不存在时返回标准错误码 `NOT_FOUND`。
+前端 `/books` 与 `/books/:bookId` 页面必须通过 `packages/contracts` 的词库 Schema 校验响应，并处理加载、空数据、错误和重试状态。
 
 #### 今日任务与学习
 
@@ -700,6 +706,7 @@ offline_queue_synced
 
 重点覆盖：
 
+- 词库列表、搜索、详情、空状态、错误和重试；
 - 单词卡片内容和音频状态；
 - 选择题、拼写题的提交与反馈；
 - 学习进度在刷新后恢复；
@@ -710,6 +717,7 @@ offline_queue_synced
 
 重点覆盖：
 
+- 词库列表、搜索、详情和不存在资源的标准错误；
 - 未登录访问被拒绝；
 - 重复 `Idempotency-Key` 不会重复更新进度；
 - 学习记录和调度结果事务一致；

@@ -17,6 +17,14 @@ enum AccountType {
   registered
 }
 
+enum VocabularyCategory {
+  k12
+  college
+  postgraduate
+  overseas
+  workplace
+}
+
 model SystemMetadata {
   key       String   @id
   value     String
@@ -48,4 +56,20 @@ model AuthSession {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model VocabularyBook {
+  id          String             @id @default(cuid())
+  slug        String             @unique
+  name        String
+  category    VocabularyCategory
+  description String
+  wordCount   Int
+  version     Int                @default(1)
+  publishedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([category])
+  @@index([publishedAt])
 }

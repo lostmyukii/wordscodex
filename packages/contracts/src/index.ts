@@ -1,4 +1,5 @@
 export {
+  apiErrorCodeSchema,
   authErrorCodeSchema,
   authSessionResponseSchema,
   errorResponseSchema,
@@ -7,6 +8,7 @@ export {
   requestCodeResponseSchema,
   userSchema,
   verifyCodeRequestSchema,
+  type ApiErrorCode,
   type AuthErrorCode,
   type AuthSessionResponse,
   type ErrorResponse,
@@ -17,3 +19,15 @@ export {
   type VerifyCodeRequest,
 } from './auth.js'
 export { healthResponseSchema, type HealthResponse } from './health.js'
+export {
+  vocabularyBookDetailResponseSchema,
+  vocabularyBookListResponseSchema,
+  vocabularyBookSchema,
+  vocabularyBookSearchQuerySchema,
+  vocabularyCategorySchema,
+  type VocabularyBook,
+  type VocabularyBookDetailResponse,
+  type VocabularyBookListResponse,
+  type VocabularyBookSearchQuery,
+  type VocabularyCategory,
+} from './vocabulary.js'

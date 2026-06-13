@@ -1,9 +1,9 @@
-import type { AuthErrorCode } from '@wordscodex/contracts'
+import type { ApiErrorCode } from '@wordscodex/contracts'
 
 export class HttpError extends Error {
   constructor(
     readonly statusCode: number,
-    readonly code: AuthErrorCode,
+    readonly code: ApiErrorCode,
     message: string,
   ) {
     super(message)

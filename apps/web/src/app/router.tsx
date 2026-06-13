@@ -3,6 +3,8 @@ import { App } from './App'
 import { LoginPage } from '../features/auth/LoginPage'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { OnboardingEntryPage } from '../features/onboarding/OnboardingEntryPage'
+import { VocabularyBookDetailPage } from '../features/vocabulary/VocabularyBookDetailPage'
+import { VocabularyBooksPage } from '../features/vocabulary/VocabularyBooksPage'
 
 export function createAppRouter() {
   return createBrowserRouter([
@@ -20,6 +22,14 @@ export function createAppRouter() {
         {
           path: '/onboarding',
           element: <OnboardingEntryPage />,
+        },
+        {
+          path: '/books',
+          element: <VocabularyBooksPage />,
+        },
+        {
+          path: '/books/:bookId',
+          element: <VocabularyBookDetailPage />,
         },
       ],
     },

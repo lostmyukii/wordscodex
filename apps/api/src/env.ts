@@ -10,7 +10,10 @@ const envSchema = z
     API_PORT: z.coerce.number().int().positive().default(3001),
     DATABASE_URL: z.string().min(1),
     REDIS_URL: z.string().url().default('redis://127.0.0.1:6379'),
-    JWT_ACCESS_SECRET: z.string().min(32),
+    JWT_ACCESS_SECRET: z
+      .string()
+      .min(32)
+      .default('development-secret-at-least-thirty-two-characters'),
     AUTH_DEV_CODE: z
       .string()
       .regex(/^\d{6}$/)

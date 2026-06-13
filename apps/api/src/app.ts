@@ -4,7 +4,11 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import rateLimit from '@fastify/rate-limit'
 import { createClient, type RedisClientType } from 'redis'
 import { ZodError } from 'zod'
-import type { AuthErrorCode, ErrorResponse } from '@wordscodex/contracts'
+import type {
+  ApiErrorCode,
+  AuthErrorCode,
+  ErrorResponse,
+} from '@wordscodex/contracts'
 import Fastify, { type FastifyReply } from 'fastify'
 import { PrismaClient } from '../generated/prisma/client.js'
 import {
@@ -16,6 +20,11 @@ import { PrismaAuthRepository } from './modules/auth/auth-repository.js'
 import { authRoutes } from './modules/auth/auth-routes.js'
 import { RedisVerificationCodeStore } from './modules/auth/redis-code-store.js'
 import { TokenService } from './modules/auth/token-service.js'
+import { PrismaVocabularyRepository } from './modules/vocabulary/vocabulary-repository.js'
+import {
+  vocabularyRoutes,
+  type VocabularyRepository,
+} from './modules/vocabulary/vocabulary-routes.js'
 import { healthRoutes } from './routes/health.js'
 import { HttpError } from './shared/http-error.js'
 
@@ -35,6 +44,7 @@ export type BuildAppOptions = {
   config?: BuildAppConfig
   prismaClient?: PrismaClient
   redisClient?: RedisClientType
+  vocabularyRepository?: VocabularyRepository
 }
 
 export function buildApp(options: BuildAppOptions = {}) {
@@ -46,6 +56,9 @@ export function buildApp(options: BuildAppOptions = {}) {
     options,
     config,
   )
+  const vocabularyRepository =
+    options.vocabularyRepository ??
+    (prismaClient ? new PrismaVocabularyRepository(prismaClient) : undefined)
 
   void app.register(cors, {
     origin: config.webOrigin,
@@ -63,6 +76,12 @@ export function buildApp(options: BuildAppOptions = {}) {
     authService,
     secureCookies: config.nodeEnv === 'production',
   })
+  if (vocabularyRepository) {
+    void app.register(vocabularyRoutes, {
+      prefix: '/api/v1',
+      vocabularyRepository,
+    })
+  }
 
   if (redisClient) {
     app.addHook('onReady', async () => {
@@ -206,7 +225,7 @@ function sendError(
   reply: FastifyReply,
   requestId: string,
   statusCode: number,
-  code: AuthErrorCode,
+  code: ApiErrorCode,
   message: string,
 ) {
   const response: ErrorResponse = {
